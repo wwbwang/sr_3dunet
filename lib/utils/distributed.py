@@ -10,6 +10,8 @@ import subprocess
 from pathlib import Path
 import submitit
 
+from lib.utils.file import checkdir
+
 
 """
 Misc functions.
@@ -39,13 +41,16 @@ def fix_random_seeds(seed=31):
     torch.cuda.manual_seed_all(seed)
     np.random.seed(seed)
 
-def get_shared_folder() -> Path:
-    user = os.getenv("USER")
-    if Path("/data/sarkar-vision/slurm_jobs/").is_dir():
-        p = Path(f"/data/sarkar-vision/slurm_jobs/{user}")
-        p.mkdir(exist_ok=True)
-        return p
-    raise RuntimeError("No shared folder available")
+def get_shared_folder(args) -> Path:
+    slurm_log_path = os.path.join(args.out, 'slurm')
+    checkdir(slurm_log_path, False)
+    return Path(slurm_log_path)
+    # user = os.getenv("USER")
+    # if Path("/data/sarkar-vision/slurm_jobs/").is_dir():
+    #     p = Path(f"/data/sarkar-vision/slurm_jobs/{user}")
+    #     p.mkdir(exist_ok=True)
+    #     return p
+    # raise RuntimeError("No shared folder available")
 
 
 def init_dist_node(args):

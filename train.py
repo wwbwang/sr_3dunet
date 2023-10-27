@@ -132,7 +132,7 @@ def main():
     if args.slurm:
 
         # Almost copy-paste from https://github.com/facebookresearch/deit/blob/main/run_with_submitit.py
-        args.output_dir = get_shared_folder() / "%j"
+        args.output_dir = get_shared_folder(args) / "%j"
         Path(args.output_dir).mkdir(parents=True, exist_ok=True)
         executor = submitit.AutoExecutor(folder=args.output_dir, slurm_max_num_timeout=30)
 
