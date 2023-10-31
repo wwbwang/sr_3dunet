@@ -13,7 +13,7 @@ class DatasetGenerator(Dataset):
         return torch.randn(1024), torch.randn(1024)
 
     def __len__(self):
-        return 100_000
+        return 100
 
 
 def get_dataset(args):

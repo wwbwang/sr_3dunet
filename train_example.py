@@ -50,7 +50,7 @@ def parse_args():
     # === Dataset === #
     parser.add_argument('-dataset', type=str, default = 'random',
                                             help='Dataset to choose')
-    parser.add_argument('-batch_per_gpu', type=int, default = 96,
+    parser.add_argument('-batch_per_gpu', type=int, default = 8,
                                             help='batch size per gpu')
     parser.add_argument('-shuffle', type=bool_flag, default = True,
                                             help='Shuffle dataset')
@@ -64,7 +64,7 @@ def parse_args():
     # === Trainer === #
     parser.add_argument('-trainer', type=str, default = 'trainer',
                                             help='Trainer to choose')
-    parser.add_argument('-epochs', type=int, default = 1000,
+    parser.add_argument('-epochs', type=int, default = 100,
                                             help='number of epochs')
     parser.add_argument('-save_every', type=int, default = 10,
                                             help='Save frequency')

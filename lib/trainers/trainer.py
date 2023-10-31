@@ -20,6 +20,8 @@ from lib.utils.distributed import MetricLogger
 from glob import glob
 import math
 
+import sys
+
 class Trainer:
 
     def __init__(self, args, loader, model, loss, optimizer):
