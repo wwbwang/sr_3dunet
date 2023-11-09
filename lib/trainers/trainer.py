@@ -115,7 +115,7 @@ class Trainer:
             self.train_one_epoch(epoch, lr_schedule)
 
             # === save model === #
-            if self.args.main and epoch%self.args.save_every == 0:
+            if self.args.main and (epoch+1)%self.args.save_every == 0:
                 self.save(epoch)
 
     def load_if_available(self):
@@ -151,4 +151,4 @@ class Trainer:
                             args = self.args
                         )
 
-        torch.save(state, "{}/weights/{}/Epoch_{}.pth".format(self.args.out, self.args.model, str(epoch).zfill(3) ))
+        torch.save(state, "{}/weights/{}/Epoch_{}.pth".format(self.args.out, self.args.model, str(epoch+1).zfill(3) ))
