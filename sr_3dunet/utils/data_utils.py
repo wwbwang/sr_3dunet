@@ -65,21 +65,19 @@ def augment_3d(imgs, aniso_dimension, hflip=True, vflip=True, dflip=True, rotati
     else:
         return imgs
     
-def preprocess(img, percentiles=[0.01,0.9999]):
+def preprocess(img):
     # input img [0,65535]
     # output img [0,1]
-    flattened_arr = np.sort(img.flatten())
-    clip_low = int(percentiles[0] * len(flattened_arr))
-    clip_high = int(percentiles[1] * len(flattened_arr))
-    clipped_arr = np.clip(img, flattened_arr[clip_low], flattened_arr[clip_high])
-
-    min_value = np.min(clipped_arr)
-    max_value = np.max(clipped_arr) 
-    img = (clipped_arr-min_value)/(max_value-min_value)
+    min_value = 0
+    max_value = 16384
+    
+    img = np.clip(img, min_value, max_value)
+    img = (img-min_value)/(max_value-min_value)
     # img = np.sqrt(img)
     return img, min_value, max_value
 
 def postprocess(img, min_value, max_value):
-    img = img * (max_value-min_value) + min_value
+    img = np.clip(img, 0, 1)
+    img = img * 16384
     return img
 

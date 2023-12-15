@@ -36,6 +36,8 @@ class Unet_3D(SRGANModel):
         self.optimizer_g.zero_grad()
         self.output = self.net_g(self.lq)
         
+        self.output = torch.clip(self.output, 0, 1)
+        
         # get iso and aniso projection arrays
         aniso_dimension = self.opt['datasets']['train'].get('aniso_dimension', None)
         output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.output, aniso_dimension)
