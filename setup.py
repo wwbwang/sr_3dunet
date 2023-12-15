@@ -6,7 +6,7 @@ import os
 import subprocess
 import time
 
-version_file = 'animesr/version.py'
+version_file = 'sr_3dunet/version.py'
 
 
 def readme():
@@ -88,15 +88,15 @@ def get_requirements(filename='requirements.txt'):
 if __name__ == '__main__':
     write_version_py()
     setup(
-        name='animesr',
+        name='sr_3dunet',
         version=get_version(),
-        description='AnimeSR: Learning Real-World Super-Resolution Models for Animation Videos (NeurIPS 2022)',
+        description='sr_3dunet',
         long_description=readme(),
         long_description_content_type='text/markdown',
-        author='Yanze Wu',
-        author_email='wuyanze123@gmail.com',
-        keywords='computer vision, pytorch, image restoration, super-resolution',
-        url='https://github.com/TencentARC/AnimeSR',
+        author='Weibo Wang',
+        author_email='wwbwang99@gmail.com',
+        # keywords='computer vision, pytorch, image restoration, super-resolution',
+        # url='https://github.com/TencentARC/AnimeSR',
         include_package_data=True,
         packages=find_packages(exclude=('options', 'datasets', 'experiments', 'results', 'tb_logger', 'wandb')),
         classifiers=[
