@@ -163,6 +163,7 @@ class UNet_3d(nn.Module):
         self.final_conv = Conv(features[0], out_channels, kernel_size=1)
 
     def forward(self, x):
+        input = x
         skip_connections = []
 
         for i, down in enumerate(self.downs):
@@ -181,7 +182,7 @@ class UNet_3d(nn.Module):
             x = self.ups[i+1](x)
 
         x = self.final_conv(x)
-        return x
+        return x + input
 
 # ==========
 # Discriminator
