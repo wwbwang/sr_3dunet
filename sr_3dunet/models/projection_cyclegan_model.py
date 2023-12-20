@@ -48,8 +48,7 @@ class Projection_CycleGAN_Model(BaseModel):
             self.load_network(self.net_d_B, load_path, self.opt['path'].get('strict_load_d', True), param_key)
         
         # no ema    ### TODO
-        if self.is_train:
-            self.init_training_settings()
+        self.init_training_settings()
 
     def init_training_settings(self):
         train_opt = self.opt['train']
@@ -57,7 +56,7 @@ class Projection_CycleGAN_Model(BaseModel):
         self.net_g_A.train()
         self.net_d_A.train()
         self.net_g_B.train()
-        self.net_g_B.train()
+        self.net_d_B.train()
 
         # define losses
         if train_opt.get('cycle_opt'):
