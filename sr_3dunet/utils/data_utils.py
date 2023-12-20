@@ -33,6 +33,33 @@ def random_crop_3d(imgs, patch_size, start_h=None, start_w=None, start_d=None):
         imgs = imgs[0]
     return imgs
 
+def random_crop_2d(imgs, patch_size, start_h=None, start_w=None):
+
+    if not isinstance(imgs, list):
+        imgs = [imgs]
+
+    # determine input type: Numpy array or Tensor
+    input_type = 'Tensor' if torch.is_tensor(imgs[0]) else 'Numpy'
+
+    if input_type == 'Tensor':
+        h, w = imgs[0].size()[-2:]
+    else:
+        h, w = imgs[0].shape[0:2]
+
+    # randomly choose top and left coordinates
+    if start_h is None:
+        start_h = random.randint(0, h - patch_size)
+    if start_w is None:
+        start_w = random.randint(0, w - patch_size)
+
+    if input_type == 'Tensor':
+        imgs = [v[:, :, start_h:start_h + patch_size, start_w:start_w + patch_size] for v in imgs]
+    else:
+        imgs = [v[start_h:start_h + patch_size, start_w:start_w + patch_size, ...] for v in imgs]
+    if len(imgs) == 1:
+        imgs = imgs[0]
+    return imgs
+
 def augment_3d(imgs, aniso_dimension, hflip=True, vflip=True, dflip=True, rotation=True, return_status=False):
     hflip = hflip and random.random() < 0.5
     vflip = vflip and random.random() < 0.5
@@ -65,6 +92,33 @@ def augment_3d(imgs, aniso_dimension, hflip=True, vflip=True, dflip=True, rotati
     else:
         return imgs
     
+def augment_2d(imgs, hflip=True, vflip=True, rotation=True, return_status=False):
+    hflip = hflip and random.random() < 0.5
+    vflip = vflip and random.random() < 0.5
+    rot90 = rotation and random.random() < 0.5
+
+    def _augment(img):
+        if hflip:  # horizontal
+            img = np.flip(img, axis=-1)
+        if vflip:  # vertical
+            img = np.flip(img, axis=-2)
+        if rot90:
+            img = img.transpose(1, 0)
+            
+        return img
+
+    if not isinstance(imgs, list):
+        imgs = [imgs]
+        
+    imgs = [_augment(img) for img in imgs]
+    if len(imgs) == 1:
+        imgs = imgs[0]
+
+    if return_status:
+        return imgs, (hflip, vflip, rot90)
+    else:
+        return imgs
+    
 def preprocess(img):
     # input img [0,65535]
     # output img [0,1]
@@ -81,3 +135,15 @@ def postprocess(img, min_value, max_value):
     img = img * 16384
     return img
 
+def get_projection(img, aniso_dimension):
+    list_dimensions = [-1, -2, -3]
+    list_dimensions.remove(aniso_dimension)
+    if isinstance(img, np.ndarray):
+        img_aniso = np.max(img, axis=aniso_dimension)
+        img_iso0 = np.max(img, axis=list_dimensions[0])
+        img_iso1 = np.max(img, axis=list_dimensions[1])
+    elif isinstance(img, torch.Tensor):
+        img_aniso = torch.max(img, dim=aniso_dimension).values
+        img_iso0 = torch.max(img, dim=list_dimensions[0]).values
+        img_iso1 = torch.max(img, dim=list_dimensions[1]).values
+    return img_aniso, img_iso0, img_iso1

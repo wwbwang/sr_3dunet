@@ -12,17 +12,71 @@ from basicsr.utils import get_root_logger, imwrite, tensor2img
 from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 
-def get_projection(img, aniso_dimension):
-    list_dimensions = [-1, -2, -3]
-    list_dimensions.remove(aniso_dimension)
-    img_aniso = torch.max(img, dim=aniso_dimension).values
-    img_iso0 = torch.max(img, dim=list_dimensions[0]).values
-    img_iso1 = torch.max(img, dim=list_dimensions[1]).values
-    return img_aniso, img_iso0, img_iso1
+from ..utils.data_utils import get_projection
+
 
 
 @MODEL_REGISTRY.register()
 class Unet_3D(SRGANModel):
+
+    def init_training_settings(self):
+        train_opt = self.opt['train']
+
+        self.ema_decay = train_opt.get('ema_decay', 0)
+        if self.ema_decay > 0:
+            logger = get_root_logger()
+            logger.info(f'Use Exponential Moving Average with decay: {self.ema_decay}')
+            # define network net_g with Exponential Moving Average (EMA)
+            # net_g_ema is used only for testing on one GPU and saving
+            # There is no need to wrap with DistributedDataParallel
+            self.net_g_ema = build_network(self.opt['network_g']).to(self.device)
+            # load pretrained model
+            load_path = self.opt['path'].get('pretrain_network_g', None)
+            if load_path is not None:
+                self.load_network(self.net_g_ema, load_path, self.opt['path'].get('strict_load_g', True), 'params_ema')
+            else:
+                self.model_ema(0)  # copy net_g weight
+            self.net_g_ema.eval()
+
+        # define network net_d
+        self.net_d = build_network(self.opt['network_d'])
+        self.net_d = self.model_to_device(self.net_d)
+        self.print_network(self.net_d)
+
+        # load pretrained models
+        load_path = self.opt['path'].get('pretrain_network_d', None)
+        if load_path is not None:
+            param_key = self.opt['path'].get('param_key_d', 'params')
+            self.load_network(self.net_d, load_path, self.opt['path'].get('strict_load_d', True), param_key)
+
+        self.net_g.train()
+        self.net_d.train()
+
+        # define losses
+        if train_opt.get('pixel_opt'):
+            self.cri_pix = build_loss(train_opt['pixel_opt']).to(self.device)
+        else:
+            self.cri_pix = None
+
+        if train_opt.get('ldl_opt'):
+            self.cri_ldl = build_loss(train_opt['ldl_opt']).to(self.device)
+        else:
+            self.cri_ldl = None
+
+        if train_opt.get('perceptual_opt'):
+            self.cri_perceptual = build_loss(train_opt['perceptual_opt']).to(self.device)
+        else:
+            self.cri_perceptual = None
+
+        if train_opt.get('gan_opt'):
+            self.cri_gan = build_loss(train_opt['gan_opt']).to(self.device)
+
+        self.net_d_iters = train_opt.get('net_d_iters', 1)
+        self.net_d_init_iters = train_opt.get('net_d_init_iters', 0)
+
+        # set up optimizers and schedulers
+        self.setup_optimizers()
+        self.setup_schedulers()
 
     def feed_data(self, data):
         # we reverse the order of lq and gt for convenient implementation

@@ -11,14 +11,14 @@ import tifffile
 
 from basicsr.utils import FileClient, get_root_logger, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
-from ..utils.data_utils import random_crop_3d, augment_3d, preprocess
+from ..utils.data_utils import random_crop_3d, augment_3d, preprocess, get_projection
 
 
 @DATASET_REGISTRY.register()
-class Unet_3D_Dataset(data.Dataset):
+class Projection_CycleGAN_Dataset(data.Dataset):
 
     def __init__(self, opt):
-        super(Unet_3D_Dataset, self).__init__()
+        super(Projection_CycleGAN_Dataset, self).__init__()
         self.opt = opt
         self.keys = []
         self.gt_root = opt['dataroot_gt']
@@ -57,7 +57,10 @@ class Unet_3D_Dataset(data.Dataset):
         # preprocess # by liuy
         img, _, _ = preprocess(img)
         
-        return img[None, ].astype(np.float32)
+        img_aniso, img_iso0, img_iso1 = get_projection(img, self.aniso_dimension)
+        img_iso = random.choice([img_iso0, img_iso1])
+        
+        return  {'img_iso': img_iso[None, ].astype(np.float32), 'img_aniso': img_aniso[None, ].astype(np.float32)}
 
     def __len__(self):
         return len(self.keys)

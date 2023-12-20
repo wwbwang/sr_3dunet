@@ -15,7 +15,7 @@
             },
             "args": [
                 "-opt",
-                "options/train_unet_3d.yml",
+                "options/train_projection_cyclegan.yml",
             ],
             "justMyCode": true
         }
