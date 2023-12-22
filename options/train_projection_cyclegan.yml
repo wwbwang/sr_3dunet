@@ -17,7 +17,7 @@ datasets:
     use_flip: true
     use_rot: true
     gt_size: 64 # fullsize is 128
-    aniso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
+    iso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
 
     # data loader
     use_shuffle: true
@@ -70,13 +70,13 @@ train:
     type: Adam
     lr: !!float 1e-4
     weight_decay: 0
-    betas: [0.9, 0.99]
+    betas: [0.9, 0.99] # [0.5, 0.99]    # [0.9, 0.99]
   optim_g_B:
     type: Adam
     lr: !!float 1e-4
     weight_decay: 0
     betas: [0.9, 0.99]
-  lr_flow: !!float 1e-5
+  # lr_flow: !!float 1e-5
   optim_d_A:
     type: Adam
     lr: !!float 1e-4
@@ -102,12 +102,27 @@ train:
     type: L1Loss
     loss_weight: 1.0
     reduction: mean
+  perceptual_opt:
+    type: PerceptualLoss
+    layer_weights:
+      # before relu
+      'conv1_2': 0.1
+      'conv2_2': 0.1
+      'conv3_4': 1
+      'conv4_4': 1
+      'conv5_4': 1
+    vgg_type: vgg19
+    use_input_norm: true
+    range_norm: false
+    perceptual_weight: 0.1
+    style_weight: 0
+    criterion: l1
   gan_opt:
     type: GANLoss
     gan_type: lsgan
     real_label_val: 1.0
     fake_label_val: 0.0
-    loss_weight: !!float 1.0    # 0.1??? # TODO
+    loss_weight: !!float 0.1 # 1.0    # 0.1??? # TODO
 
   net_d_iters: 1
   net_d_init_iters: 0
@@ -120,8 +135,8 @@ train:
 
 # logging settings
 logger:
-  print_freq: 100
-  save_checkpoint_freq: !!float 100
+  print_freq: 10
+  save_checkpoint_freq: !!float 50
   use_tb_logger: true
   wandb:
     project: ~

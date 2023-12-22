@@ -123,7 +123,7 @@ def preprocess(img):
     # input img [0,65535]
     # output img [0,1]
     min_value = 0
-    max_value = 16384
+    max_value = 65535
     
     img = np.clip(img, min_value, max_value)
     img = (img-min_value)/(max_value-min_value)
@@ -132,18 +132,18 @@ def preprocess(img):
 
 def postprocess(img, min_value, max_value):
     img = np.clip(img, 0, 1)
-    img = img * 16384
+    img = img * 65535
     return img
 
-def get_projection(img, aniso_dimension):
+def get_projection(img, iso_dimension):
     list_dimensions = [-1, -2, -3]
-    list_dimensions.remove(aniso_dimension)
+    list_dimensions.remove(iso_dimension)
     if isinstance(img, np.ndarray):
-        img_aniso = np.max(img, axis=aniso_dimension)
-        img_iso0 = np.max(img, axis=list_dimensions[0])
-        img_iso1 = np.max(img, axis=list_dimensions[1])
+        img_iso = np.max(img, axis=iso_dimension)
+        img_aniso0 = np.max(img, axis=list_dimensions[0])
+        img_aniso1 = np.max(img, axis=list_dimensions[1])
     elif isinstance(img, torch.Tensor):
-        img_aniso = torch.max(img, dim=aniso_dimension).values
-        img_iso0 = torch.max(img, dim=list_dimensions[0]).values
-        img_iso1 = torch.max(img, dim=list_dimensions[1]).values
-    return img_aniso, img_iso0, img_iso1
+        img_iso = torch.max(img, dim=iso_dimension).values
+        img_aniso0 = torch.max(img, dim=list_dimensions[0]).values
+        img_aniso1 = torch.max(img, dim=list_dimensions[1]).values
+    return img_iso, img_aniso0, img_aniso1

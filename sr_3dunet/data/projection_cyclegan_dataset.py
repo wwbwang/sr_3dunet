@@ -22,7 +22,7 @@ class Projection_CycleGAN_Dataset(data.Dataset):
         self.opt = opt
         self.keys = []
         self.gt_root = opt['dataroot_gt']
-        self.aniso_dimension = opt['aniso_dimension']
+        self.iso_dimension = opt['iso_dimension']
         logger = get_root_logger()
 
         img_names = os.listdir(self.gt_root)
@@ -52,13 +52,13 @@ class Projection_CycleGAN_Dataset(data.Dataset):
         # random crop
         img = random_crop_3d(img, self.opt['gt_size'])
         # augmentation
-        img = augment_3d(img, self.aniso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+        img = augment_3d(img, self.iso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
         # preprocess # by liuy
         img, _, _ = preprocess(img)
         
-        img_aniso, img_iso0, img_iso1 = get_projection(img, self.aniso_dimension)
-        img_iso = random.choice([img_iso0, img_iso1])
+        img_iso, img_aniso0, img_aniso1 = get_projection(img, self.iso_dimension)
+        img_aniso = random.choice([img_aniso0, img_aniso1])
         
         return  {'img_iso': img_iso[None, ].astype(np.float32), 'img_aniso': img_aniso[None, ].astype(np.float32)}
 

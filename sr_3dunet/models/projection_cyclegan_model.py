@@ -7,6 +7,7 @@ from collections import OrderedDict
 import itertools
 from os import path as osp
 import tqdm
+import copy
 
 from basicsr.archs import build_network
 from basicsr.losses import build_loss
@@ -26,14 +27,15 @@ class Projection_CycleGAN_Model(BaseModel):
 
         # define network net_g
         self.net_g_A = build_network(opt['network_g_A'])
-        self.net_g_A = self.model_to_device(self.net_g_A)
         self.net_g_B = build_network(opt['network_g_B'])
+        self.net_g_A = self.model_to_device(self.net_g_A)
         self.net_g_B = self.model_to_device(self.net_g_B)
+        # self.net_g_A = copy.copy(self.net_g_B)
         
         # define network net_d
         self.net_d_A = build_network(self.opt['network_d_A'])
-        self.net_d_A = self.model_to_device(self.net_d_A)
         self.net_d_B = build_network(self.opt['network_d_B'])
+        self.net_d_A = self.model_to_device(self.net_d_A)
         self.net_d_B = self.model_to_device(self.net_d_B)
         
         # load pretrained model
@@ -64,6 +66,11 @@ class Projection_CycleGAN_Model(BaseModel):
         else:
             self.cri_cycle = None
 
+        if train_opt.get('perceptual_opt'):
+            self.cri_perceptual = build_loss(train_opt['perceptual_opt']).to(self.device)
+        else:
+            self.cri_perceptual = None
+
         if train_opt.get('gan_opt'):
             self.cri_gan = build_loss(train_opt['gan_opt']).to(self.device)
 
@@ -78,11 +85,11 @@ class Projection_CycleGAN_Model(BaseModel):
         train_opt = self.opt['train']
         # optimizer g
         optim_type = train_opt['optim_g_A'].pop('type')
-        self.optimizer_g = self.get_optimizer(optim_type, itertools.chain(self.net_g_A.parameters(),self.net_g_A.parameters()), **train_opt['optim_g_A'])
+        self.optimizer_g = self.get_optimizer(optim_type, itertools.chain(self.net_g_A.parameters(),self.net_g_B.parameters()), **train_opt['optim_g_A'])
         self.optimizers.append(self.optimizer_g)
         # optimizer d
         optim_type = train_opt['optim_d_A'].pop('type')
-        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_A.parameters(),self.net_d_A.parameters()), **train_opt['optim_d_A'])
+        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_A.parameters(),self.net_d_B.parameters()), **train_opt['optim_d_A'])
         self.optimizers.append(self.optimizer_d)
         
     def feed_data(self, data):
@@ -98,11 +105,11 @@ class Projection_CycleGAN_Model(BaseModel):
         
         # optimize net_g
         self.optimizer_g.zero_grad()
-        fake_B = torch.clip(self.net_g_A(real_A), 0, 1)
-        fake_A = torch.clip(self.net_g_B(real_B), 0, 1)
+        fake_B = torch.clip(self.net_g_A(real_A), -10, 10)
+        fake_A = torch.clip(self.net_g_B(real_B), -10, 10)
         
-        rec_A = torch.clip(self.net_g_B(fake_B), 0, 1)
-        rec_B = torch.clip(self.net_g_A(fake_A), 0, 1)
+        rec_A = torch.clip(self.net_g_B(fake_B), -10, 10)
+        rec_B = torch.clip(self.net_g_A(fake_A), -10, 10)
 
         l_g_total = 0
         loss_dict = OrderedDict()
@@ -123,7 +130,18 @@ class Projection_CycleGAN_Model(BaseModel):
             if self.cri_cycle:
                 l_g_cycle_A = self.cri_cycle(rec_A, real_A)
                 l_g_cycle_B = self.cri_cycle(rec_B, real_B)
-                l_g_total += l_g_cycle_A + l_g_cycle_A
+                # perceptual loss
+                if self.cri_perceptual:
+                    l_g_percep_A, l_g_style_A = self.cri_perceptual(rec_A, real_A)
+                    l_g_percep_B, l_g_style_B = self.cri_perceptual(rec_B, real_B)
+                    if l_g_percep_A is not None:
+                        l_g_cycle_A += l_g_percep_A
+                        l_g_cycle_B += l_g_percep_B
+                    if l_g_style_A is not None:
+                        l_g_cycle_A += l_g_style_A
+                        l_g_cycle_B += l_g_style_B
+
+                l_g_total += l_g_cycle_A + l_g_cycle_B
                 loss_dict['l_g_cycle_A'] = l_g_cycle_A
                 loss_dict['l_g_cycle_B'] = l_g_cycle_B
 
@@ -154,8 +172,13 @@ class Projection_CycleGAN_Model(BaseModel):
         l_d_gan_B = backward_D_basic(self.net_d_B, real_B, fake_B)
         loss_dict['l_d_gan_B'] = l_d_gan_B
         self.optimizer_d.step()
+        loss_dict['fake_B_mean'] = fake_B.mean()
+        loss_dict['real_B_mean'] = real_B.mean()
+        loss_dict['rec_B_mean'] = rec_B.mean()
 
-        self.log_dict = self.reduce_loss_dict(loss_dict)
+        self.log_dict = self.reduce_loss_dict(loss_dict)    
+        # print("real_A: {}, real_B: {}, fake_A: {}, fake_B: {}, rec_A: {}, rec_B: {}"\
+        #     .format(real_A.mean(), real_B.mean(), fake_A.mean(), fake_B.mean(), rec_A.mean(), rec_B.mean()))
 
     # no validation
     # 
