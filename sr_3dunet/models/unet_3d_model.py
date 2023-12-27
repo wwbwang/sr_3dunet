@@ -4,6 +4,7 @@ from os import path as osp
 from tqdm import tqdm
 import numpy as np
 import random
+import itertools
 
 from basicsr.archs import build_network
 from basicsr.losses import build_loss
@@ -11,13 +12,37 @@ from basicsr.metrics import calculate_metric
 from basicsr.utils import get_root_logger, imwrite, tensor2img
 from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
+from basicsr.models.base_model import BaseModel
 
 from ..utils.data_utils import get_projection
 
 
 
 @MODEL_REGISTRY.register()
-class Unet_3D(SRGANModel):
+class Unet_3D(BaseModel):
+
+    def __init__(self, opt):
+        super(Unet_3D, self).__init__(opt)
+
+        # define network
+        self.net_g_A = build_network(opt['network_g_A'])
+        self.net_g_B = build_network(opt['network_g_B'])
+        self.net_g_A = self.model_to_device(self.net_g_A)
+        self.net_g_B = self.model_to_device(self.net_g_B)
+        # self.print_network(self.net_g)
+
+        # load pretrained models
+        load_path = self.opt['path'].get('pretrain_network_g_A', None)
+        if load_path is not None:
+            param_key = self.opt['path'].get('param_key_g_A', 'params')
+            self.load_network(self.net_g, load_path, self.opt['path'].get('strict_load_g', True), param_key)
+        load_path = self.opt['path'].get('pretrain_network_g_B', None)
+        if load_path is not None:
+            param_key = self.opt['path'].get('param_key_g_B', 'params')
+            self.load_network(self.net_g, load_path, self.opt['path'].get('strict_load_g', True), param_key)
+
+        if self.is_train:
+            self.init_training_settings()
 
     def init_training_settings(self):
         train_opt = self.opt['train']
@@ -41,7 +66,7 @@ class Unet_3D(SRGANModel):
         # define network net_d
         self.net_d = build_network(self.opt['network_d'])
         self.net_d = self.model_to_device(self.net_d)
-        self.print_network(self.net_d)
+        # self.print_network(self.net_d)
 
         # load pretrained models
         load_path = self.opt['path'].get('pretrain_network_d', None)
@@ -49,7 +74,8 @@ class Unet_3D(SRGANModel):
             param_key = self.opt['path'].get('param_key_d', 'params')
             self.load_network(self.net_d, load_path, self.opt['path'].get('strict_load_d', True), param_key)
 
-        self.net_g.train()
+        self.net_g_A.train()
+        self.net_g_B.train()
         self.net_d.train()
 
         # define losses
@@ -70,6 +96,9 @@ class Unet_3D(SRGANModel):
 
         if train_opt.get('gan_opt'):
             self.cri_gan = build_loss(train_opt['gan_opt']).to(self.device)
+        
+        if train_opt.get('cycle_opt'):
+            self.cri_cycle = build_loss(train_opt['cycle_opt']).to(self.device)
 
         self.net_d_iters = train_opt.get('net_d_iters', 1)
         self.net_d_init_iters = train_opt.get('net_d_init_iters', 0)
@@ -77,6 +106,17 @@ class Unet_3D(SRGANModel):
         # set up optimizers and schedulers
         self.setup_optimizers()
         self.setup_schedulers()
+        
+    def setup_optimizers(self):
+        train_opt = self.opt['train']
+        # optimizer g
+        optim_type = train_opt['optim_g'].pop('type')
+        self.optimizer_g = self.get_optimizer(optim_type, itertools.chain(self.net_g_A.parameters(),self.net_g_B.parameters()), **train_opt['optim_g'])
+        self.optimizers.append(self.optimizer_g)
+        # optimizer d
+        optim_type = train_opt['optim_d'].pop('type')
+        self.optimizer_d = self.get_optimizer(optim_type, self.net_d.parameters(), **train_opt['optim_d'])
+        self.optimizers.append(self.optimizer_d)
 
     def feed_data(self, data):
         # we reverse the order of lq and gt for convenient implementation
@@ -88,15 +128,17 @@ class Unet_3D(SRGANModel):
             p.requires_grad = False
 
         self.optimizer_g.zero_grad()
-        self.output = self.net_g(self.lq)
+        self.realA = self.lq
+        self.fakeB = self.net_g_A(self.realA)
+        self.recA = self.net_g_B(self.fakeB)
         
-        self.output = torch.clip(self.output, 0, 1)
+        # self.fakeB = torch.clip(self.fakeB, 0, 1)
         
         # get iso and aniso projection arrays
         aniso_dimension = self.opt['datasets']['train'].get('aniso_dimension', None)
-        output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.output, aniso_dimension)
+        output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.fakeB, aniso_dimension)
         output_aiso_proj = random.choice([output_aiso_proj0, output_aiso_proj1])
-        input_iso_proj, _, _ = get_projection(self.lq, aniso_dimension)
+        input_iso_proj, _, _ = get_projection(self.realA, aniso_dimension)
 
         l_g_total = 0
         loss_dict = OrderedDict()
@@ -115,6 +157,11 @@ class Unet_3D(SRGANModel):
                 if l_g_style is not None:
                     l_g_total += l_g_style
                     loss_dict['l_g_style'] = l_g_style
+            # cycle loss
+            if self.cri_cycle:
+                l_g_cycle = self.cri_cycle(self.realA, self.recA)
+                l_g_total += l_g_cycle
+                loss_dict['l_g_cycle'] = l_g_cycle
             # generator loss
             fake_g_pred = self.net_d(output_aiso_proj)
             l_g_gan = self.cri_gan(fake_g_pred, True, is_disc=False)
@@ -148,3 +195,9 @@ class Unet_3D(SRGANModel):
 
         if self.ema_decay > 0:
             self.model_ema(decay=self.ema_decay)
+            
+    def save(self, epoch, current_iter):
+        self.save_network(self.net_g_A, 'net_g_A', current_iter)
+        self.save_network(self.net_g_B, 'net_g_B', current_iter)
+        self.save_network(self.net_d, 'net_d', current_iter)
+        self.save_training_state(epoch, current_iter)

@@ -131,9 +131,9 @@ class DoubleConv(nn.Module):
         return x
 
 @ARCH_REGISTRY.register()
-class UNet_3d(nn.Module):
+class UNet_3d_Generator(nn.Module):
     def __init__(self, in_channels=1, out_channels=1, features=[64, 128, 256, 512], *, norm_type='batch', dim=3):
-        super(UNet_3d, self).__init__()
+        super(UNet_3d_Generator, self).__init__()
         self.downs = nn.ModuleList()
         self.ups = nn.ModuleList()
 

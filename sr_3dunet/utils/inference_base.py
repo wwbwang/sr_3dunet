@@ -2,7 +2,7 @@ import argparse
 import os.path
 import torch
 
-from sr_3dunet.archs.unet_3d_arch import UNet_3d
+from sr_3dunet.archs.unet_3d_arch import UNet_3d_Generator
 
 
 def get_base_argument_parser() -> argparse.ArgumentParser:
@@ -17,10 +17,10 @@ def get_base_argument_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def get_inference_model(args, device) -> UNet_3d:
+def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
     # set up model
-    model = UNet_3d(in_channels=1, out_channels=1, features=[64, 128, 256, 512], dim=3)
+    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], dim=3)
 
     model_path = args.model_path
     assert os.path.isfile(model_path), \
