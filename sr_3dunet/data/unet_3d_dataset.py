@@ -52,7 +52,7 @@ class Unet_3D_Dataset(data.Dataset):
         # random crop
         img = random_crop_3d(img, self.opt['gt_size'])
         # augmentation
-        img = augment_3d(img, self.aniso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+        # img = augment_3d(img, self.aniso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
         # preprocess # by liuy
         img, _, _ = preprocess(img)

@@ -127,12 +127,12 @@ def preprocess(img):
     
     img = np.clip(img, min_value, max_value)
     img = (img-min_value)/(max_value-min_value)
-    # img = np.sqrt(img)
+    img = np.sqrt(img) - 0.093
     return img, min_value, max_value
 
 def postprocess(img, min_value, max_value):
-    img = np.clip(img, 0, 1)
-    img = img * 65535
+    img = img # + 0.093 # np.clip(img + 0.093, 0, 1)
+    # img = img * 256 # 65535
     return img
 
 def get_projection(img, iso_dimension):

@@ -182,7 +182,7 @@ class UNet_3d_Generator(nn.Module):
             x = self.ups[i+1](x)
 
         x = self.final_conv(x)
-        return x + input
+        return x
 
 # ==========
 # Discriminator

@@ -2,7 +2,7 @@ import argparse
 import os.path
 import torch
 
-from sr_3dunet.archs.unet_3d_arch import UNet_3d_Generator
+from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 
 def get_base_argument_parser() -> argparse.ArgumentParser:

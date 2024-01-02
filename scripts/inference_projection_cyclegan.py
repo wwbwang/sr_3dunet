@@ -71,7 +71,7 @@ def main():
     num_imgs = len(img_path_list)       # 17
     
     for img_path in img_path_list:
-        img = tifffile.imread(os.path.join(args.input, img_path))        
+        img = tifffile.imread(os.path.join(args.input, img_path))# [:100,:100,:100]        
         img, min_value, max_value = preprocess(img)
         img = img.astype(np.float32)[None, None, ]
         _, _, img = get_projection(img, args.iso_dimension)

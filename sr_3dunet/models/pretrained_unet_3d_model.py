@@ -19,10 +19,10 @@ from ..utils.data_utils import get_projection
 
 
 @MODEL_REGISTRY.register()
-class Unet_3D(BaseModel):
+class Pretrained_Unet_3D(BaseModel):
 
     def __init__(self, opt):
-        super(Unet_3D, self).__init__(opt)
+        super(Pretrained_Unet_3D, self).__init__(opt)
 
         # define network
         self.net_g_A = build_network(opt['network_g_A'])
@@ -64,26 +64,19 @@ class Unet_3D(BaseModel):
             self.net_g_ema.eval()
 
         # define network net_d
-        self.net_d_A = build_network(self.opt['network_d_A'])
-        self.net_d_B = build_network(self.opt['network_d_B'])
-        self.net_d_A = self.model_to_device(self.net_d_A)
-        self.net_d_B = self.model_to_device(self.net_d_B)
+        self.net_d = build_network(self.opt['network_d'])
+        self.net_d = self.model_to_device(self.net_d)
         # self.print_network(self.net_d)
 
         # load pretrained models
-        load_path = self.opt['path'].get('pretrain_network_d_A', None)
+        load_path = self.opt['path'].get('pretrain_network_d', None)
         if load_path is not None:
             param_key = self.opt['path'].get('param_key_d', 'params')
-            self.load_network(self.net_d_A, load_path, self.opt['path'].get('strict_load_d', True), param_key)
-        load_path = self.opt['path'].get('pretrain_network_d_B', None)
-        if load_path is not None:
-            param_key = self.opt['path'].get('param_key_d', 'params')
-            self.load_network(self.net_d_B, load_path, self.opt['path'].get('strict_load_d', True), param_key)
+            self.load_network(self.net_d, load_path, self.opt['path'].get('strict_load_d', True), param_key)
 
         self.net_g_A.train()
         self.net_g_B.train()
-        self.net_d_A.train()
-        self.net_d_B.train()
+        self.net_d.train()
 
         # define losses
         if train_opt.get('pixel_opt'):
@@ -107,6 +100,9 @@ class Unet_3D(BaseModel):
         if train_opt.get('cycle_opt'):
             self.cri_cycle = build_loss(train_opt['cycle_opt']).to(self.device)
 
+        if train_opt.get('cycle_ssim_opt'):
+            self.cri_cycle_ssim = build_loss(train_opt['cycle_ssim_opt']).to(self.device)
+            
         self.net_d_iters = train_opt.get('net_d_iters', 1)
         self.net_d_init_iters = train_opt.get('net_d_init_iters', 0)
 
@@ -122,7 +118,7 @@ class Unet_3D(BaseModel):
         self.optimizers.append(self.optimizer_g)
         # optimizer d
         optim_type = train_opt['optim_d'].pop('type')
-        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_A.parameters(),self.net_d_B.parameters()), **train_opt['optim_d'])
+        self.optimizer_d = self.get_optimizer(optim_type, self.net_d.parameters(), **train_opt['optim_d'])
         self.optimizers.append(self.optimizer_d)
 
     def feed_data(self, data):
@@ -131,20 +127,13 @@ class Unet_3D(BaseModel):
 
     def optimize_parameters(self, current_iter):
         # optimize net_g
-        for p in self.net_d_A.parameters():
-            p.requires_grad = False
-        for p in self.net_d_B.parameters():
+        for p in self.net_d.parameters():
             p.requires_grad = False
 
         self.optimizer_g.zero_grad()
         self.realA = self.lq
         self.fakeB = self.net_g_A(self.realA)
         self.recA = self.net_g_B(self.fakeB)
-        
-        import tifffile
-        import random
-        if random.random()<0.01:
-            tifffile.imsave(str(random.random)+'tif', self.realA)
         
         # self.fakeB = torch.clip(self.fakeB, 0, 1)
         
@@ -176,51 +165,37 @@ class Unet_3D(BaseModel):
                 l_g_cycle = self.cri_cycle(self.realA, self.recA)
                 l_g_total += l_g_cycle
                 loss_dict['l_g_cycle'] = l_g_cycle
+            # cycle_ssim loss
+            if self.cri_cycle_ssim:
+                l_g_cycle_ssim = self.cri_cycle_ssim(self.realA, self.recA)
+                l_g_total += l_g_cycle_ssim
+                loss_dict['l_g_cycle_ssim'] = l_g_cycle_ssim
             # generator loss
-            fake_Bprojection_g_pred = self.net_d_B(output_aiso_proj)
-            l_g_gan_B = self.cri_gan(fake_Bprojection_g_pred, True, is_disc=False)
-            rec_Acube_pred = self.net_d_A(self.recA)
-            l_g_gan_A = self.cri_gan(rec_Acube_pred, True, is_disc=False)
-            
-            l_g_total += l_g_gan_B + l_g_gan_A
-            loss_dict['l_g_gan_B'] = l_g_gan_B
-            loss_dict['l_g_gan_A'] = l_g_gan_A
+            fake_g_pred = self.net_d(output_aiso_proj)
+            l_g_gan = self.cri_gan(fake_g_pred, True, is_disc=False)
+            l_g_total += l_g_gan
+            loss_dict['l_g_gan'] = l_g_gan
 
             l_g_total.backward()
             self.optimizer_g.step()
 
         # optimize net_d
-        for p in self.net_d_A.parameters():
-            p.requires_grad = True        
-        for p in self.net_d_B.parameters():
+        for p in self.net_d.parameters():
             p.requires_grad = True
 
         self.optimizer_d.zero_grad()
         # discriminator loss
         # real
-        real_Bprojection_d_pred = self.net_d_B(input_iso_proj)
-        l_d_real_B = self.cri_gan(real_Bprojection_d_pred, True, is_disc=True)
-        loss_dict['l_d_real_B'] = l_d_real_B
-        l_d_real_B.backward()
+        real_d_pred = self.net_d(input_iso_proj)
+        l_d_real = self.cri_gan(real_d_pred, True, is_disc=True)
+        loss_dict['l_d_real'] = l_d_real
+        l_d_real.backward()
         # fake
-        fake_Bprojection_d_pred = self.net_d_B(output_aiso_proj.detach())
-        l_d_fake_B = self.cri_gan(fake_Bprojection_d_pred, False, is_disc=True)
-        loss_dict['l_d_fake_B'] = l_d_fake_B
-        l_d_fake_B.backward()
-        
-        # real
-        real_Acube_d_pred = self.net_d_A(self.realA)
-        l_d_real_A = self.cri_gan(real_Acube_d_pred, True, is_disc=True)
-        loss_dict['l_d_real_A'] = l_d_real_A
-        l_d_real_A.backward()
-        # fake
-        rec_Acube_d_pred = self.net_d_A(self.recA.detach())
-        l_d_rec_A = self.cri_gan(rec_Acube_d_pred, False, is_disc=True)
-        loss_dict['l_d_rec_A'] = l_d_rec_A
-        l_d_rec_A.backward()
-                
-        # l_d_total = l_d_real_B + l_d_fake_B + l_d_real_A + l_d_rec_A
-        # l_d_total.backward()
+        fake_d_pred = self.net_d(output_aiso_proj.detach())
+        l_d_fake = self.cri_gan(fake_d_pred, False, is_disc=True)
+        loss_dict['l_d_fake'] = l_d_fake
+        # l_d_total = (l_d_real + l_d_fake) / 2
+        l_d_fake.backward()
         
         self.optimizer_d.step()
 
@@ -232,6 +207,5 @@ class Unet_3D(BaseModel):
     def save(self, epoch, current_iter):
         self.save_network(self.net_g_A, 'net_g_A', current_iter)
         self.save_network(self.net_g_B, 'net_g_B', current_iter)
-        self.save_network(self.net_d_A, 'net_d_A', current_iter)
-        self.save_network(self.net_d_B, 'net_d_B', current_iter)
+        self.save_network(self.net_d, 'net_d', current_iter)
         self.save_training_state(epoch, current_iter)

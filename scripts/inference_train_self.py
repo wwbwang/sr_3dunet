@@ -24,10 +24,8 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
     # set up model
     model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], dim=3)
-    model_back = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], dim=3)
 
     model_path = args.model_path
-    model_back_path = args.model_back_path
     assert os.path.isfile(model_path), \
         f'{model_path} does not exist, please make sure you successfully download the pretrained models ' \
         f'and put them into the weights folder'
@@ -37,13 +35,8 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
     model.load_state_dict(loadnet['params'], strict=True)
     model.eval()
     model = model.to(device)
-    
-    loadnet = torch.load(model_back_path)
-    model_back.load_state_dict(loadnet['params'], strict=True)
-    model_back.eval()
-    model_back = model.to(device)
 
-    return model.half() if args.half else model, model_back.half() if args.half else model_back
+    return model.half() if args.half else model
 
 @torch.no_grad()
 def main():
@@ -54,7 +47,7 @@ def main():
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model, model_back = get_inference_model(args, device)
+    model = get_inference_model(args, device)
     print("Model size: {:.5f}M".format(sum(p.numel() for p in model.parameters())*4/1048576))
 
     # prepare output dir
@@ -75,9 +68,6 @@ def main():
         img = torch.from_numpy(img).to(device)     # to float32
         out = model(img)[0][0]
         tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path), postprocess(out.cpu().numpy(), min_value, max_value))
-        
-        out = model_back(out[None, None, ])[0][0]
-        tifffile.imwrite(os.path.join(args.output, "back", "back" + img_path), postprocess(out.cpu().numpy(), min_value, max_value))
         
         pbar1.update(1)
 
