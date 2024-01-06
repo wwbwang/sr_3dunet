@@ -15,10 +15,17 @@ from tqdm import tqdm
 
 from sr_3dunet.utils.inference_base import get_base_argument_parser
 from sr_3dunet.utils.video_util import frames2video
-from sr_3dunet.utils.data_utils import preprocess, postprocess
+from sr_3dunet.utils.data_utils import preprocess, postprocess, rotate_block, extend_block
 from basicsr.data.transforms import mod_crop
 from basicsr.utils.img_util import img2tensor, tensor2img
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
+
+def remove_outer_layer(matrix):
+    return matrix
+    step = 32
+    height, width, depth = matrix.shape
+    removed_matrix = matrix[step:height-step, step:width-step, step:depth-step]
+    return removed_matrix
 
 def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
@@ -41,7 +48,7 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
     loadnet = torch.load(model_back_path)
     model_back.load_state_dict(loadnet['params'], strict=True)
     model_back.eval()
-    model_back = model.to(device)
+    model_back = model_back.to(device)
 
     return model.half() if args.half else model, model_back.half() if args.half else model_back
 
@@ -68,16 +75,18 @@ def main():
     num_imgs = len(img_path_list)       # 17
     
     for img_path in img_path_list:
-        img = tifffile.imread(os.path.join(args.input, img_path))     
+        img = tifffile.imread(os.path.join(args.input, img_path))
+        # img = rotate_block(img)
+        # img = extend_block(img)
         img, min_value, max_value = preprocess(img)
-        tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), img)   
+        tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), postprocess(remove_outer_layer(img), min_value, max_value))   
         img = img.astype(np.float32)[None, None, ]
         img = torch.from_numpy(img).to(device)     # to float32
         out = model(img)[0][0]
-        tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path), postprocess(out.cpu().numpy(), min_value, max_value))
+        tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path), postprocess(remove_outer_layer(out).cpu().numpy(), min_value, max_value))
         
         out = model_back(out[None, None, ])[0][0]
-        tifffile.imwrite(os.path.join(args.output, "back", "back" + img_path), postprocess(out.cpu().numpy(), min_value, max_value))
+        tifffile.imwrite(os.path.join(args.output, "back", "back" + img_path), postprocess(remove_outer_layer(out).cpu().numpy(), min_value, max_value))
         
         pbar1.update(1)
 

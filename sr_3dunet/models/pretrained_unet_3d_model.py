@@ -83,7 +83,12 @@ class Pretrained_Unet_3D(BaseModel):
             self.cri_pix = build_loss(train_opt['pixel_opt']).to(self.device)
         else:
             self.cri_pix = None
-
+        
+        if train_opt.get('projection_ssim_opt'):
+            self.cri_projection_ssim = build_loss(train_opt['projection_ssim_opt']).to(self.device)
+        else:
+            self.cri_projection_ssim = None
+        
         if train_opt.get('ldl_opt'):
             self.cri_ldl = build_loss(train_opt['ldl_opt']).to(self.device)
         else:
@@ -151,6 +156,11 @@ class Pretrained_Unet_3D(BaseModel):
                 l_g_pix = self.cri_pix(output_iso_proj, input_iso_proj)
                 l_g_total += l_g_pix
                 loss_dict['l_g_pix'] = l_g_pix
+            # projection ssim loss
+            if self.cri_projection_ssim:
+                l_g_projection_ssim = self.cri_projection_ssim(output_iso_proj, input_iso_proj)
+                l_g_total += l_g_projection_ssim
+                loss_dict['l_g_projection_ssim'] = l_g_projection_ssim
             # perceptual loss
             if self.cri_perceptual:
                 l_g_percep, l_g_style = self.cri_perceptual(output_iso_proj, input_iso_proj)

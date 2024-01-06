@@ -63,7 +63,7 @@ def main():
     for img_path in img_path_list:
         img = tifffile.imread(os.path.join(args.input, img_path))     
         img, min_value, max_value = preprocess(img)
-        tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), img)   
+        tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), postprocess(img, min_value, max_value))   
         img = img.astype(np.float32)[None, None, ]
         img = torch.from_numpy(img).to(device)     # to float32
         out = model(img)[0][0]

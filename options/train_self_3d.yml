@@ -85,6 +85,7 @@ train:
     win_size: 11
     win_sigma: 1.5
     channel: 1
+    dim: 3
 
   net_d_iters: 1
   net_d_init_iters: 0

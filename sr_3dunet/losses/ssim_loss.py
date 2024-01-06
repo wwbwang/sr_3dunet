@@ -22,7 +22,7 @@ def _fspecial_gauss_1d(size, sigma):
 
     return g.unsqueeze(0).unsqueeze(0)
 
-def gaussian_filter(input, win):
+def gaussian_filter_3d(input, win):
     r""" Blur input with 1-D kernel
     Args:
         input (torch.Tensor): a batch of tensors to be blured
@@ -36,11 +36,25 @@ def gaussian_filter(input, win):
     out = F.conv3d(out, win.transpose(3, 4), stride=1, padding=0, groups=C)
     return out
 
+def gaussian_filter_2d(input, win):
+    r""" Blur input with 1-D kernel
+    Args:
+        input (torch.Tensor): a batch of tensors to be blured
+        window (torch.Tensor): 1-D gauss kernel
+    Returns:
+        torch.Tensor: blured tensors
+    """
+    N, C, H, W = input.shape
+    out = F.conv2d(input, win, stride=1, padding=0, groups=C)
+    out = F.conv2d(out, win.transpose(2, 3), stride=1, padding=0, groups=C)
+    return out
+
 def _ssim(X, Y,
           data_range,
           win,
           size_average=True,
-          K=(0.01, 0.03)):
+          K=(0.01, 0.03),
+          dim=2):
     r""" Calculate ssim index for X and Y
     Args:
         X (torch.Tensor): images
@@ -52,7 +66,7 @@ def _ssim(X, Y,
         torch.Tensor: ssim results.
     """
     K1, K2 = K
-    batch, channel, height, width, depth = X.shape
+    # batch, channel, height, width, depth = X.shape
     compensation = 1.0
 
     C1 = (K1 * data_range) ** 2
@@ -60,6 +74,11 @@ def _ssim(X, Y,
 
     win = win.to(X.device, dtype=X.dtype)
 
+    if dim==2:
+        gaussian_filter = gaussian_filter_2d
+    elif dim==3:
+        gaussian_filter = gaussian_filter_3d
+        
     mu1 = gaussian_filter(X, win)
     mu2 = gaussian_filter(Y, win)
 
@@ -85,7 +104,8 @@ def ssim(X, Y,
          win_sigma=1.5,
          win=None,
          K=(0.01, 0.03),
-         nonnegative_ssim=False):
+         nonnegative_ssim=False,
+         dim=2):
     r""" interface of ssim
     Args:
         X (torch.Tensor): a batch of images, (N,C,H,W)
@@ -113,15 +133,12 @@ def ssim(X, Y,
     if not (win_size % 2 == 1):
         raise ValueError('Window size should be odd.')
 
-    if win is None:
-        win = _fspecial_gauss_1d(win_size, win_sigma)
-        win = win.repeat(X.shape[1], 1, 1, 1, 1)
-
     ssim_per_channel, cs = _ssim(X, Y,
                                  data_range=data_range,
                                  win=win,
                                  size_average=False,
-                                 K=K)
+                                 K=K,
+                                 dim=dim)
     if nonnegative_ssim:
         ssim_per_channel = torch.relu(ssim_per_channel)
 
@@ -141,7 +158,8 @@ class SSIMLoss(nn.Module):
                  win_sigma=1.5,
                  channel=3,
                  K=(0.01, 0.03),
-                 nonnegative_ssim=False):
+                 nonnegative_ssim=False,
+                 dim=2):
         r""" class for ssim
         Args:
             data_range (float or int, optional): value range of input images. (usually 1.0 or 255)
@@ -156,11 +174,15 @@ class SSIMLoss(nn.Module):
         super(SSIMLoss, self).__init__()
         self.loss_weight = loss_weight
         self.win_size = win_size
-        self.win = _fspecial_gauss_1d(win_size, win_sigma).repeat(channel, 1, 1, 1, 1)     # usage? NOTE
+        if dim==2:
+            self.win = _fspecial_gauss_1d(win_size, win_sigma).repeat(channel, 1, 1, 1)     # usage? NOTE
+        if dim==3:
+            self.win = _fspecial_gauss_1d(win_size, win_sigma).repeat(channel, 1, 1, 1, 1)     # usage? NOTE
         self.size_average = size_average
         self.data_range = data_range
         self.K = K
         self.nonnegative_ssim = nonnegative_ssim
+        self.dim = dim
 
     def forward(self, X, Y):
         return self.loss_weight * (1 - ssim(X, Y,
@@ -168,4 +190,5 @@ class SSIMLoss(nn.Module):
                     size_average=self.size_average,
                     win=self.win,
                     K=self.K,
-                    nonnegative_ssim=self.nonnegative_ssim))
+                    nonnegative_ssim=self.nonnegative_ssim,
+                    dim=self.dim))
