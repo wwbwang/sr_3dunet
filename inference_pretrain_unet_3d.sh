@@ -1,5 +1,5 @@
 
-branch_name="base1.0"
+branch_name="both_loss_GAN" # "just_ssim"
 iter='10000000000'  # nan Appoint in terminal
 
 # 从命令行获取参数

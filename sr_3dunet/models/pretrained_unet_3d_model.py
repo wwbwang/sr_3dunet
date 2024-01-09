@@ -1,6 +1,7 @@
 import torch
 from collections import OrderedDict
 from os import path as osp
+import os
 from tqdm import tqdm
 import numpy as np
 import random
@@ -15,8 +16,7 @@ from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
 from ..utils.data_utils import get_projection
-
-
+from sr_3dunet.archs.projection_cyclegan_arch import Real2Fake_Generator, Fake2Real_Generator
 
 @MODEL_REGISTRY.register()
 class Pretrained_Unet_3D(BaseModel):
@@ -43,6 +43,22 @@ class Pretrained_Unet_3D(BaseModel):
 
         if self.is_train:
             self.init_training_settings()
+
+    def aniso_proj2iso_proj(self, img_aiso_proj):
+        model = Real2Fake_Generator(input_nc=1, output_nc=1, ngf=64)
+
+        model_path = '/home/wangwb/workspace/sr_3dunet/weights/projection_cyclegan_net_g_A_25000.pth'
+        assert os.path.isfile(model_path), \
+            f'{model_path} does not exist, please make sure you successfully download the pretrained models ' \
+            f'and put them into the weights folder'
+
+        # load checkpoint
+        loadnet = torch.load(model_path)
+        model.load_state_dict(loadnet['params'], strict=True)
+        model.eval()
+        model = model.to(self.device)
+        
+        return model(img_aiso_proj)
 
     def init_training_settings(self):
         train_opt = self.opt['train']
@@ -146,21 +162,26 @@ class Pretrained_Unet_3D(BaseModel):
         aniso_dimension = self.opt['datasets']['train'].get('aniso_dimension', None)
         output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.fakeB, aniso_dimension)
         output_aiso_proj = random.choice([output_aiso_proj0, output_aiso_proj1])
-        input_iso_proj, _, _ = get_projection(self.realA, aniso_dimension)
+        input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, aniso_dimension)
+        input_aiso_proj = random.choice([input_aiso_proj0, input_aiso_proj1])
 
         l_g_total = 0
         loss_dict = OrderedDict()
         if (current_iter % self.net_d_iters == 0 and current_iter > self.net_d_init_iters):              
             # pixel loss
             if self.cri_pix:
-                l_g_pix = self.cri_pix(output_iso_proj, input_iso_proj)
-                l_g_total += l_g_pix
-                loss_dict['l_g_pix'] = l_g_pix
+                l_g_pix_real = self.cri_pix(output_iso_proj, input_iso_proj)
+                l_g_pix_psuedo = self.cri_pix(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
+                l_g_total += l_g_pix_real + l_g_pix_psuedo
+                loss_dict['l_g_pix_real'] = l_g_pix_real
+                loss_dict['l_g_pix_psuedo'] = l_g_pix_psuedo
             # projection ssim loss
             if self.cri_projection_ssim:
-                l_g_projection_ssim = self.cri_projection_ssim(output_iso_proj, input_iso_proj)
-                l_g_total += l_g_projection_ssim
-                loss_dict['l_g_projection_ssim'] = l_g_projection_ssim
+                l_g_projection_ssim_real = self.cri_projection_ssim(output_iso_proj, input_iso_proj)
+                l_g_projection_ssim_psuedo = self.cri_projection_ssim(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
+                l_g_total += l_g_projection_ssim_real + l_g_projection_ssim_psuedo
+                loss_dict['l_g_projection_ssim_real'] = l_g_projection_ssim_real
+                loss_dict['l_g_projection_ssim_psuedo'] = l_g_projection_ssim_psuedo
             # perceptual loss
             if self.cri_perceptual:
                 l_g_percep, l_g_style = self.cri_perceptual(output_iso_proj, input_iso_proj)

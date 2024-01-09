@@ -22,7 +22,7 @@ from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def remove_outer_layer(matrix):
     return matrix
-    step = 32
+    step = 2
     height, width, depth = matrix.shape
     removed_matrix = matrix[step:height-step, step:width-step, step:depth-step]
     return removed_matrix

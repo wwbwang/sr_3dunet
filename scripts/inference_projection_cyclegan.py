@@ -74,8 +74,8 @@ def main():
         img = tifffile.imread(os.path.join(args.input, img_path))# [:100,:100,:100]        
         img, min_value, max_value = preprocess(img)
         img = img.astype(np.float32)[None, None, ]
-        _, _, img = get_projection(img, args.iso_dimension)
-        tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), img)
+        _, img, _ = get_projection(img, args.iso_dimension)
+        tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), postprocess(img, min_value, max_value))
         
         img = torch.from_numpy(img).to(device)
         out = model(img)[0][0]

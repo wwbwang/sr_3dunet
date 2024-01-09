@@ -71,6 +71,11 @@ class Projection_CycleGAN_Model(BaseModel):
         else:
             self.cri_perceptual = None
 
+        if train_opt.get('projection_ssim_opt'):
+            self.cri_projection_ssim = build_loss(train_opt['projection_ssim_opt']).to(self.device)
+        else:
+            self.cri_projection_ssim = None
+
         if train_opt.get('gan_opt'):
             self.cri_gan = build_loss(train_opt['gan_opt']).to(self.device)
 
@@ -130,20 +135,26 @@ class Projection_CycleGAN_Model(BaseModel):
             if self.cri_cycle:
                 l_g_cycle_A = self.cri_cycle(rec_A, real_A)
                 l_g_cycle_B = self.cri_cycle(rec_B, real_B)
-                # perceptual loss
-                if self.cri_perceptual:
-                    l_g_percep_A, l_g_style_A = self.cri_perceptual(rec_A, real_A)
-                    l_g_percep_B, l_g_style_B = self.cri_perceptual(rec_B, real_B)
-                    if l_g_percep_A is not None:
-                        l_g_cycle_A += l_g_percep_A
-                        l_g_cycle_B += l_g_percep_B
-                    if l_g_style_A is not None:
-                        l_g_cycle_A += l_g_style_A
-                        l_g_cycle_B += l_g_style_B
-
                 l_g_total += l_g_cycle_A + l_g_cycle_B
                 loss_dict['l_g_cycle_A'] = l_g_cycle_A
                 loss_dict['l_g_cycle_B'] = l_g_cycle_B
+            # (cycle) projection ssim loss
+            if self.cri_projection_ssim:
+                l_g_projection_ssim_A = self.cri_projection_ssim(rec_A, real_A)
+                l_g_projection_ssim_B = self.cri_projection_ssim(rec_B, real_B)
+                l_g_total += l_g_projection_ssim_A + l_g_projection_ssim_B
+                loss_dict['l_g_projection_ssim_A'] = l_g_projection_ssim_A
+                loss_dict['l_g_projection_ssim_B'] = l_g_projection_ssim_B
+            # perceptual loss
+            if self.cri_perceptual:
+                l_g_percep_A, l_g_style_A = self.cri_perceptual(rec_A, real_A)
+                l_g_percep_B, l_g_style_B = self.cri_perceptual(rec_B, real_B)
+                if l_g_percep_A is not None:
+                    l_g_cycle_A += l_g_percep_A
+                    l_g_cycle_B += l_g_percep_B
+                if l_g_style_A is not None:
+                    l_g_cycle_A += l_g_style_A
+                    l_g_cycle_B += l_g_style_B
 
             l_g_total.backward()
             self.optimizer_g.step()
