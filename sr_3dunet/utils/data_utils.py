@@ -60,7 +60,7 @@ def random_crop_2d(imgs, patch_size, start_h=None, start_w=None):
         imgs = imgs[0]
     return imgs
 
-def augment_3d(imgs, aniso_dimension, hflip=True, vflip=True, dflip=True, rotation=True, return_status=False):
+def augment_3d(imgs, iso_dimension, hflip=True, vflip=True, dflip=True, rotation=True, return_status=False):
     hflip = hflip and random.random() < 0.5
     vflip = vflip and random.random() < 0.5
     dflip = dflip and random.random() < 0.5
@@ -74,9 +74,9 @@ def augment_3d(imgs, aniso_dimension, hflip=True, vflip=True, dflip=True, rotati
         if dflip:  # 
             img = np.flip(img, axis=-3)
         if rot90:
-            img = img.transpose(1, 0, 2) if aniso_dimension==-1 else img
-            img = img.transpose(2, 1, 0) if aniso_dimension==-2 else img
-            img = img.transpose(0, 2, 1) if aniso_dimension==-3 else img
+            img = img.transpose(1, 0, 2) if iso_dimension==-1 else img
+            img = img.transpose(2, 1, 0) if iso_dimension==-2 else img
+            img = img.transpose(0, 2, 1) if iso_dimension==-3 else img
             
         return img
 
@@ -130,7 +130,7 @@ def augment_2d(imgs, hflip=True, vflip=True, rotation=True, return_status=False)
 #     img = np.sqrt(img) - 0.093
 #     return img, min_value, max_value
 
-def preprocess(img, percentiles=[0.01,0.9985]):  # 再加一个数量级就获得和原图差不多的视觉效果
+def preprocess(img, percentiles, dataset_mean):  # 再加一个数量级就获得和原图差不多的视觉效果
     flattened_arr = np.sort(img.flatten())
     clip_low = int(percentiles[0] * len(flattened_arr))
     clip_high = int(percentiles[1] * len(flattened_arr))
@@ -139,13 +139,14 @@ def preprocess(img, percentiles=[0.01,0.9985]):  # 再加一个数量级就获�
     min_value = np.min(clipped_arr)
     max_value = np.max(clipped_arr) 
     img = (clipped_arr-min_value)/(max_value-min_value)
-    img = np.sqrt(img) - 0.89
+    img = np.sqrt(img)
+    img = img - dataset_mean
     return img, min_value, max_value
 
-def postprocess(img, min_value, max_value):
+def postprocess(img, min_value, max_value, dataset_mean=0.153):
     # return img
     # img = np.clip(img + 0.093, 0, 1)
-    img = img + 0.89
+    img = img + dataset_mean
     img = np.square(img)
     img = img * (max_value - min_value) + min_value
     # img = img * 256 # 65535
@@ -163,6 +164,46 @@ def get_projection(img, iso_dimension):
         img_aniso0 = torch.max(img, dim=list_dimensions[0]).values
         img_aniso1 = torch.max(img, dim=list_dimensions[1]).values
     return img_iso, img_aniso0, img_aniso1
+    
+def get_rotated_img(raw_img, aniso_dimension):
+    raw_img = raw_img.astype(np.float32)
+    list_img = []
+    for i in range(raw_img.shape[aniso_dimension]):
+        img = raw_img[..., i, :]
+        img = img[None,]
+        _, height, width = img.shape
+        max_size = max(height, width)
+
+        desired_height = int(max_size * 1.414213) // 2 * 2
+        desired_width = int(max_size * 1.414213) // 2 * 2
+
+        border_height = (desired_height - height) // 2
+        border_width = (desired_width - width) // 2
+
+        center_x = desired_height // 2
+        center_y = desired_height // 2
+        rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+
+        extend_img = np.pad(img, ((0, 0), (border_height, border_height), (border_width, border_width)), mode='constant')[0]
+        rotated_img = cv2.warpAffine(extend_img, rotation_matrix, (desired_width, desired_height))
+        list_img.append(rotated_img)
+        
+    return np.stack(list_img)
+
+def get_rotated_projection(img, aniso_dimension=-2):   # 默认左上到右下倾斜
+    if aniso_dimension == -2:
+        list_iso = []
+        list_aniso = []
+        for i in range(img.shape[aniso_dimension]):
+            rotated_raw_img = get_rotated_img(img[..., i, :])
+            iso_array, aniso_array = np.max(rotated_raw_img, axis=1), np.max(rotated_raw_img, axis=0)
+            list_iso.append(iso_array)
+            list_aniso.append(aniso_array)
+        iso_proj = np.stack(list_iso)
+        aniso_proj = np.stack(list_aniso)
+        return iso_proj, aniso_proj
+    else:
+        return "error"
 
 def extend_block(img):
     h, w, d = img.shape

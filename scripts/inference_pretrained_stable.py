@@ -80,8 +80,8 @@ def main():
         if args.rotateflag:
             img = get_rotated_img(img, -2)
             img = extend_block(img)
-        dataset_mean=0.89
-        img, min_value, max_value = preprocess(img, dataset_mean=dataset_mean)
+        dataset_mean=0.089
+        img, min_value, max_value = preprocess(img, percentiles=[0.01,0.9999], dataset_mean=dataset_mean)
         tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), postprocess(remove_outer_layer(img), min_value, max_value, dataset_mean=dataset_mean))   
         img = img.astype(np.float32)[None, None, ]
         img = torch.from_numpy(img).to(device)     # to float32

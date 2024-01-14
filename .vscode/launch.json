@@ -17,7 +17,8 @@
                 "-opt",
                 // "options/train_projection_cyclegan.yml",
                 // "options/pretrain_unet_3d.yml",
-                "options/train_unet_3d.yml",
+                // "options/train_unet_3d.yml",
+                "options/train_projection_cyclegan_rotatedVISoR.yml",
             ],
             "justMyCode": false
         }

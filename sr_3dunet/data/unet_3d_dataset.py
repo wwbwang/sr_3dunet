@@ -22,7 +22,9 @@ class Unet_3D_Dataset(data.Dataset):
         self.opt = opt
         self.keys = []
         self.gt_root = opt['dataroot_gt']
-        self.aniso_dimension = opt['aniso_dimension']
+        self.iso_dimension = opt['iso_dimension']
+        self.mean = opt['mean']
+        self.percentiles = opt['percentiles']
         logger = get_root_logger()
 
         img_names = os.listdir(self.gt_root)
@@ -52,10 +54,10 @@ class Unet_3D_Dataset(data.Dataset):
         # random crop
         img = random_crop_3d(img, self.opt['gt_size'])
         # augmentation
-        img = augment_3d(img, self.aniso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+        img = augment_3d(img, self.iso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
         # preprocess # by liuy
-        img, _, _ = preprocess(img)
+        img, _, _ = preprocess(img, percentiles=self.percentiles, dataset_mean=self.mean)
         
         return img[None, ].astype(np.float32)
 

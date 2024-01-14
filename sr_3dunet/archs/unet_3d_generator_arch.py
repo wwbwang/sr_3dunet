@@ -139,10 +139,12 @@ class UNet_3d_Generator(nn.Module):
 
         if dim == 2:
             Conv = nn.Conv2d
+            upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
             ConvTranspose = nn.ConvTranspose2d
             self.MaxPool = nn.MaxPool2d
         elif dim == 3:
             Conv = nn.Conv3d
+            upsample = nn.Upsample(scale_factor=2, mode='trilinear', align_corners=True)
             ConvTranspose = nn.ConvTranspose3d
             self.MaxPool = nn.MaxPool3d
         else:
@@ -156,7 +158,11 @@ class UNet_3d_Generator(nn.Module):
         # Decoder
         for feature in reversed(features[:-1]):
             self.ups.append(
-                ConvTranspose(feature*2, feature, kernel_size=2, stride=2)
+                nn.Sequential(
+                    upsample, 
+                    Conv(feature*2, feature, kernel_size=1, stride=1)
+                )
+                # ConvTranspose(feature*2, feature, kernel_size=2, stride=2)
             )
             self.ups.append(DoubleConv(feature*2, feature, norm_type=norm_type, dim=dim))
 

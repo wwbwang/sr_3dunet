@@ -11,25 +11,25 @@ import tifffile
 
 from basicsr.utils import FileClient, get_root_logger, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
-from ..utils.data_utils import random_crop_3d, augment_3d, preprocess, get_projection
-
+from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_3d, augment_2d, preprocess, get_projection,get_rotated_projection, get_rotated_img
+from sr_3dunet.data.projection_cyclegan_dataset import Projection_CycleGAN_Dataset
 
 @DATASET_REGISTRY.register()
-class Projection_CycleGAN_Dataset(data.Dataset):
+class Rotated_Projection_CycleGAN_Dataset(data.Dataset):
 
     def __init__(self, opt):
-        super(Projection_CycleGAN_Dataset, self).__init__()
+        super(Rotated_Projection_CycleGAN_Dataset, self).__init__()
         self.opt = opt
         self.keys = []
         self.gt_root = opt['dataroot_gt']
-        self.iso_dimension = opt['iso_dimension']
+        self.aniso_dimension = opt['aniso_dimension']
         self.mean = opt['mean']
         self.percentiles = opt['percentiles']
         logger = get_root_logger()
 
         img_names = os.listdir(self.gt_root)
         for img_name in img_names:
-            self.keys.append(osp.join(self.gt_root, img_name))
+            self.keys.append(img_name)
 
         # file client (io backend)
         self.file_client = None
@@ -51,18 +51,22 @@ class Projection_CycleGAN_Dataset(data.Dataset):
         
         img = tifffile.imread(img_name)
         
-        # random crop
-        img = random_crop_3d(img, self.opt['gt_size'])
-        # augmentation
-        img = augment_3d(img, self.iso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
-        
         # preprocess # by liuy
-        img, _, _ = preprocess(img)
+        img, _, _ = preprocess(img, percentiles=self.percentiles, dataset_mean=self.mean)
         
-        img_iso, img_aniso0, img_aniso1 = get_projection(img, self.iso_dimension)
+        img_iso, img_aniso0 = get_rotated_projection(img, self.aniso_dimension)
+        img_aniso1 = get_projection()
+        
         img_aniso = random.choice([img_aniso0, img_aniso1])
         
+        # random crop
+        img_iso = random_crop_2d(img_iso, self.opt['gt_size'])
+        img_aniso = random_crop_2d(img_aniso, self.opt['gt_size'])
+        # augmentation
+        img_iso = augment_2d(img_iso, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+        img_aniso = augment_2d(img_aniso, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+        
         return  {'img_iso': img_iso[None, ].astype(np.float32), 'img_aniso': img_aniso[None, ].astype(np.float32)}
-
+    
     def __len__(self):
         return len(self.keys)

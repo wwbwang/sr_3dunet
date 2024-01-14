@@ -1,5 +1,5 @@
 # general settings
-name: both_loss_GAN
+name: no_pretrain # both_loss_GAN
 model_type: Unet_3D
 num_gpu: 4  # set num_gpu: 0 for cpu mode
 manual_seed: 0
@@ -21,7 +21,7 @@ datasets:
     use_flip: true
     use_rot: true
     gt_size: 64 # fullsize is 128
-    aniso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
+    iso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
 
     # data loader
     use_shuffle: true
@@ -64,10 +64,10 @@ network_d_B:  # d_B
 
 # path
 path:
-  pretrain_network_g_A: /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_A_41400.pth
-  pretrain_network_g_B: /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_B_41400.pth
+  pretrain_network_g_A: /home/wangwb/workspace/sr_3dunet/weights/backup/train_self_3d_aver_0.089.pth # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_A_41400.pth
+  pretrain_network_g_B: /home/wangwb/workspace/sr_3dunet/weights/backup/train_self_3d_aver_0.089.pth # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_B_41400.pth
   pretrain_network_d_A: ~
-  pretrain_network_d_B: /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netd_41400.pth
+  pretrain_network_d_B: ~ # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netd_41400.pth
   param_key_g_A: params
   param_key_g_B: params
   strict_load_g: true
