@@ -1,5 +1,5 @@
 # general settings
-name: no_pretrain # both_loss_GAN
+name: one_step # no_pretrain # both_loss_GAN
 model_type: Unet_3D
 num_gpu: 4  # set num_gpu: 0 for cpu mode
 manual_seed: 0
@@ -16,6 +16,8 @@ datasets:
     type: Unet_3D_Dataset
     dataroot_gt: /home/wangwb/workspace/sr_3dunet/datasets/rotated_blocks/train
     test_mode: False
+    mean: 0 # 0.254 # 0.1535 # 0.0728 # 0.141
+    percentiles: [0.01,0.9985]
     io_backend:
       type: disk    
     use_flip: true
@@ -64,8 +66,8 @@ network_d_B:  # d_B
 
 # path
 path:
-  pretrain_network_g_A: /home/wangwb/workspace/sr_3dunet/weights/backup/train_self_3d_aver_0.089.pth # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_A_41400.pth
-  pretrain_network_g_B: /home/wangwb/workspace/sr_3dunet/weights/backup/train_self_3d_aver_0.089.pth # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_B_41400.pth
+  pretrain_network_g_A: ~ # /home/wangwb/workspace/sr_3dunet/weights/backup/train_self_3d_aver_0.089.pth # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_A_41400.pth
+  pretrain_network_g_B: ~ # /home/wangwb/workspace/sr_3dunet/weights/backup/train_self_3d_aver_0.089.pth # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netg_B_41400.pth
   pretrain_network_d_A: ~
   pretrain_network_d_B: ~ # /home/wangwb/workspace/sr_3dunet/weights/cube_bothloss_cyclegan_netd_41400.pth
   param_key_g_A: params
@@ -136,7 +138,7 @@ train:
     loss_weight: !!float 1.0    # 0.1??? # TODO
   cycle_opt:
     type: L1Loss
-    loss_weight: 20.0
+    loss_weight: 10.0
     reduction: mean
   cycle_ssim_opt:
     type: SSIMLoss

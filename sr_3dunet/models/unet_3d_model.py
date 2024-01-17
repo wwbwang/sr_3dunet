@@ -16,7 +16,6 @@ from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
 from ..utils.data_utils import get_projection
-from sr_3dunet.archs.projection_cyclegan_arch import Real2Fake_Generator, Fake2Real_Generator
 
 @MODEL_REGISTRY.register()
 class Unet_3D(BaseModel):
@@ -44,21 +43,21 @@ class Unet_3D(BaseModel):
         if self.is_train:
             self.init_training_settings()
 
-    def aniso_proj2iso_proj(self, img_aiso_proj):
-        model = Real2Fake_Generator(input_nc=1, output_nc=1, ngf=64)
+    # def aniso_proj2iso_proj(self, img_aiso_proj):
+    #     model = Real2Fake_Generator(input_nc=1, output_nc=1, ngf=64)
 
-        model_path = '/home/wangwb/workspace/sr_3dunet/weights/projection_cyclegan_net_g_A_25000.pth'
-        assert os.path.isfile(model_path), \
-            f'{model_path} does not exist, please make sure you successfully download the pretrained models ' \
-            f'and put them into the weights folder'
+    #     model_path = '/home/wangwb/workspace/sr_3dunet/weights/projection_cyclegan_net_g_A_25000.pth'
+    #     assert os.path.isfile(model_path), \
+    #         f'{model_path} does not exist, please make sure you successfully download the pretrained models ' \
+    #         f'and put them into the weights folder'
 
-        # load checkpoint
-        loadnet = torch.load(model_path)
-        model.load_state_dict(loadnet['params'], strict=True)
-        model.eval()
-        model = model.to(self.device)
+    #     # load checkpoint
+    #     loadnet = torch.load(model_path)
+    #     model.load_state_dict(loadnet['params'], strict=True)
+    #     model.eval()
+    #     model = model.to(self.device)
         
-        return model(img_aiso_proj)
+    #     return model(img_aiso_proj)
 
     def init_training_settings(self):
         train_opt = self.opt['train']
@@ -168,9 +167,9 @@ class Unet_3D(BaseModel):
         # self.fakeB = torch.clip(self.fakeB, 0, 1)
         
         # get iso and aniso projection arrays
-        aniso_dimension = self.opt['datasets']['train'].get('aniso_dimension', None)
-        input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, aniso_dimension)
-        output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.fakeB, aniso_dimension)
+        iso_dimension = self.opt['datasets']['train'].get('iso_dimension', None)
+        input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, iso_dimension)
+        output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.fakeB, iso_dimension)
         aiso_proj_index = random.choice(['0', '1'])
         match = lambda x: {
             '0': (input_aiso_proj0, output_aiso_proj0),

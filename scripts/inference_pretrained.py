@@ -14,8 +14,8 @@ from os import path as osp
 from tqdm import tqdm
 
 from sr_3dunet.utils.inference_base import get_base_argument_parser
-from sr_3dunet.utils.video_util import frames2video
 from sr_3dunet.utils.data_utils import preprocess, postprocess, rotate_block, extend_block, get_rotated_img
+from scripts.get_MIP import get_and_save_MIP
 from basicsr.data.transforms import mod_crop
 from basicsr.utils.img_util import img2tensor, tensor2img
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
@@ -58,7 +58,6 @@ def main():
     parser.add_argument('--num_io_consumer', type=int, default=3, help='number of IO consumer')
     parser.add_argument('--model_path', type=str, help='model_path')
     parser.add_argument('--model_back_path', type=str, help='model_back_path')
-    parser.add_argument('--rotateflag', type=bool, default=False, help='rotateflag')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -74,22 +73,22 @@ def main():
 
     pbar1 = tqdm(total=len(img_path_list), unit='tif_img', desc='inference')
     num_imgs = len(img_path_list)       # 17
+    percentiles=[0.01,0.9985] 
+    dataset_mean=0
     
     for img_path in img_path_list:
         img = tifffile.imread(os.path.join(args.input, img_path))
-        if args.rotateflag:
-            img = get_rotated_img(img, -2)
-            img = extend_block(img)
-        dataset_mean=0.89
-        img, min_value, max_value = preprocess(img, dataset_mean=dataset_mean)
+        img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
         tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), postprocess(remove_outer_layer(img), min_value, max_value, dataset_mean=dataset_mean))   
         img = img.astype(np.float32)[None, None, ]
         img = torch.from_numpy(img).to(device)     # to float32
         out = model(img)[0][0]
         tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path), postprocess(remove_outer_layer(out).cpu().numpy(), min_value, max_value, dataset_mean=dataset_mean))
         
-        out = model_back(out[None, None, ])[0][0]
-        tifffile.imwrite(os.path.join(args.output, "back", "back" + img_path), postprocess(remove_outer_layer(out).cpu().numpy(), min_value, max_value, dataset_mean=dataset_mean))
+        back = model_back(out[None, None, ])[0][0]
+        tifffile.imwrite(os.path.join(args.output, "back", "back" + img_path), postprocess(remove_outer_layer(back).cpu().numpy(), min_value, max_value, dataset_mean=dataset_mean))
+        
+        get_and_save_MIP(postprocess(remove_outer_layer(out).cpu().numpy(), min_value, max_value, dataset_mean=dataset_mean), os.path.join(args.output, "output_proj"), "output"+img_path)
         
         pbar1.update(1)
 
