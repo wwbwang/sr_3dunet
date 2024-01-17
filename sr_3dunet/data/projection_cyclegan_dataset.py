@@ -57,7 +57,7 @@ class Projection_CycleGAN_Dataset(data.Dataset):
         img = augment_3d(img, self.iso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
         # preprocess # by liuy
-        img, _, _ = preprocess(img)
+        img, _, _ = preprocess(img, self.percentiles, self.mean)
         
         img_iso, img_aniso0, img_aniso1 = get_projection(img, self.iso_dimension)
         img_aniso = random.choice([img_aniso0, img_aniso1])

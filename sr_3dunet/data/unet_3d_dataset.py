@@ -57,7 +57,7 @@ class Unet_3D_Dataset(data.Dataset):
         img = augment_3d(img, self.iso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
         # preprocess # by liuy
-        img, _, _ = preprocess(img, percentiles=self.percentiles, dataset_mean=self.mean)
+        img, _, _ = preprocess(img, self.percentiles, self.mean)
         
         return img[None, ].astype(np.float32)
 

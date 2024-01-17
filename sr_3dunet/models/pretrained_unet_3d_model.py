@@ -171,17 +171,17 @@ class Pretrained_Unet_3D(BaseModel):
             # pixel loss
             if self.cri_pix:
                 l_g_pix_real = self.cri_pix(output_iso_proj, input_iso_proj)
-                l_g_pix_psuedo = self.cri_pix(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
-                l_g_total += l_g_pix_real + l_g_pix_psuedo
+                # l_g_pix_psuedo = self.cri_pix(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
+                l_g_total += l_g_pix_real # + l_g_pix_psuedo
                 loss_dict['l_g_pix_real'] = l_g_pix_real
-                loss_dict['l_g_pix_psuedo'] = l_g_pix_psuedo
+                # loss_dict['l_g_pix_psuedo'] = l_g_pix_psuedo
             # projection ssim loss
             if self.cri_projection_ssim:
                 l_g_projection_ssim_real = self.cri_projection_ssim(output_iso_proj, input_iso_proj)
-                l_g_projection_ssim_psuedo = self.cri_projection_ssim(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
-                l_g_total += l_g_projection_ssim_real + l_g_projection_ssim_psuedo
+                # l_g_projection_ssim_psuedo = self.cri_projection_ssim(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
+                l_g_total += l_g_projection_ssim_real # + l_g_projection_ssim_psuedo
                 loss_dict['l_g_projection_ssim_real'] = l_g_projection_ssim_real
-                loss_dict['l_g_projection_ssim_psuedo'] = l_g_projection_ssim_psuedo
+                # loss_dict['l_g_projection_ssim_psuedo'] = l_g_projection_ssim_psuedo
             # perceptual loss
             if self.cri_perceptual:
                 l_g_percep, l_g_style = self.cri_perceptual(output_iso_proj, input_iso_proj)

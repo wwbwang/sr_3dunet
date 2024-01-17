@@ -18,7 +18,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-CUDA_VISIBLE_DEVICES=2 python scripts/inference_train_self.py \
+CUDA_VISIBLE_DEVICES=7 python scripts/inference_train_self.py \
     --expname "${branch_name}_net_g_${iter}" --num_io_consumer 1\
     -i /home/wangwb/workspace/sr_3dunet/datasets/rotated_blocks/val\
     -o /home/wangwb/workspace/sr_3dunet/results/${branch_name}_net_g_${iter}\

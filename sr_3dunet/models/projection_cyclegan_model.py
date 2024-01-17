@@ -183,9 +183,6 @@ class Projection_CycleGAN_Model(BaseModel):
         l_d_gan_B = backward_D_basic(self.net_d_B, real_B, fake_B)
         loss_dict['l_d_gan_B'] = l_d_gan_B
         self.optimizer_d.step()
-        loss_dict['fake_B_mean'] = fake_B.mean()
-        loss_dict['real_B_mean'] = real_B.mean()
-        loss_dict['rec_B_mean'] = rec_B.mean()
 
         self.log_dict = self.reduce_loss_dict(loss_dict)    
         # print("real_A: {}, real_B: {}, fake_A: {}, fake_B: {}, rec_A: {}, rec_B: {}"\

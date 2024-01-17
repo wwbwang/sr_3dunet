@@ -61,6 +61,7 @@ def main():
     print("Model size: {:.5f}M".format(sum(p.numel() for p in model.parameters())*4/1048576))
 
     # prepare output dir
+    os.makedirs(os.path.join(args.output, "origin"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "input"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "output"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "back"), exist_ok=True)
@@ -69,11 +70,14 @@ def main():
 
     pbar1 = tqdm(total=len(img_path_list), unit='tif_img', desc='inference')
     num_imgs = len(img_path_list)       # 17
+    percentiles=[0.01,0.995] 
+    dataset_mean=0.2 
     
     for img_path in img_path_list:
-        img = tifffile.imread(os.path.join(args.input, img_path))# [:100,:100,:100]        
-        img, min_value, max_value = preprocess(img)
-        img = img.astype(np.float32)[None, None, ]
+        img = tifffile.imread(os.path.join(args.input, img_path))# [:100,:100,:100]       
+        img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
+        img = img.astype(np.float32)[None, None, ] 
+        tifffile.imwrite(os.path.join(args.output, "origin", "origin" + img_path), img)
         _, img, _ = get_projection(img, args.iso_dimension)
         tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path), postprocess(img, min_value, max_value))
         

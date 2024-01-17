@@ -15,14 +15,14 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
-from ..utils.data_utils import get_projection
+from ..utils.data_utils import get_projection,  get_rotated_projection, get_rotated_img
 from sr_3dunet.archs.projection_cyclegan_arch import Real2Fake_Generator, Fake2Real_Generator
 
 @MODEL_REGISTRY.register()
-class Unet_3D(BaseModel):
+class RotatedVISoR_Pretrained_Unet_3D(BaseModel):
 
     def __init__(self, opt):
-        super(Unet_3D, self).__init__(opt)
+        super(RotatedVISoR_Pretrained_Unet_3D, self).__init__(opt)
 
         # define network
         self.net_g_A = build_network(opt['network_g_A'])
@@ -80,26 +80,19 @@ class Unet_3D(BaseModel):
             self.net_g_ema.eval()
 
         # define network net_d
-        self.net_d_A = build_network(self.opt['network_d_A'])
-        self.net_d_A = self.model_to_device(self.net_d_A)
-        self.net_d_B = build_network(self.opt['network_d_B'])
-        self.net_d_B = self.model_to_device(self.net_d_B)
+        self.net_d = build_network(self.opt['network_d'])
+        self.net_d = self.model_to_device(self.net_d)
         # self.print_network(self.net_d)
 
         # load pretrained models
-        load_path = self.opt['path'].get('pretrain_network_d_A', None)
+        load_path = self.opt['path'].get('pretrain_network_d', None)
         if load_path is not None:
             param_key = self.opt['path'].get('param_key_d', 'params')
-            self.load_network(self.net_d_A, load_path, self.opt['path'].get('strict_load_d', True), param_key)
-        load_path = self.opt['path'].get('pretrain_network_d_B', None)
-        if load_path is not None:
-            param_key = self.opt['path'].get('param_key_d', 'params')
-            self.load_network(self.net_d_B, load_path, self.opt['path'].get('strict_load_d', True), param_key)
+            self.load_network(self.net_d, load_path, self.opt['path'].get('strict_load_d', True), param_key)
 
         self.net_g_A.train()
         self.net_g_B.train()
-        self.net_d_A.train()
-        self.net_d_B.train()
+        self.net_d.train()
 
         # define losses
         if train_opt.get('pixel_opt'):
@@ -146,7 +139,7 @@ class Unet_3D(BaseModel):
         self.optimizers.append(self.optimizer_g)
         # optimizer d
         optim_type = train_opt['optim_d'].pop('type')
-        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_A.parameters(),self.net_d_B.parameters()), **train_opt['optim_d'])
+        self.optimizer_d = self.get_optimizer(optim_type, self.net_d.parameters(), **train_opt['optim_d'])
         self.optimizers.append(self.optimizer_d)
 
     def feed_data(self, data):
@@ -155,9 +148,7 @@ class Unet_3D(BaseModel):
 
     def optimize_parameters(self, current_iter):
         # optimize net_g
-        for p in self.net_d_A.parameters():
-            p.requires_grad = False
-        for p in self.net_d_B.parameters():
+        for p in self.net_d.parameters():
             p.requires_grad = False
 
         self.optimizer_g.zero_grad()
@@ -169,14 +160,10 @@ class Unet_3D(BaseModel):
         
         # get iso and aniso projection arrays
         iso_dimension = self.opt['datasets']['train'].get('iso_dimension', None)
-        input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, iso_dimension)
         output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.fakeB, iso_dimension)
-        aiso_proj_index = random.choice(['0', '1'])
-        match = lambda x: {
-            '0': (input_aiso_proj0, output_aiso_proj0),
-            '1': (input_aiso_proj1, output_aiso_proj1)
-        }.get(x, ('error0', 'error1'))
-        input_aiso_proj, output_aiso_proj = match(aiso_proj_index) # random.choice([output_aiso_proj0, output_aiso_proj1])
+        output_aiso_proj = random.choice([output_aiso_proj0, output_aiso_proj1])
+        input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, iso_dimension)
+        input_aiso_proj = random.choice([input_aiso_proj0, input_aiso_proj1])
 
         l_g_total = 0
         loss_dict = OrderedDict()
@@ -185,14 +172,14 @@ class Unet_3D(BaseModel):
             if self.cri_pix:
                 l_g_pix_real = self.cri_pix(output_iso_proj, input_iso_proj)
                 # l_g_pix_psuedo = self.cri_pix(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
-                l_g_total += l_g_pix_real #  + l_g_pix_psuedo
+                l_g_total += l_g_pix_real # + l_g_pix_psuedo
                 loss_dict['l_g_pix_real'] = l_g_pix_real
                 # loss_dict['l_g_pix_psuedo'] = l_g_pix_psuedo
             # projection ssim loss
             if self.cri_projection_ssim:
                 l_g_projection_ssim_real = self.cri_projection_ssim(output_iso_proj, input_iso_proj)
                 # l_g_projection_ssim_psuedo = self.cri_projection_ssim(output_aiso_proj, self.aniso_proj2iso_proj(input_aiso_proj))
-                l_g_total += l_g_projection_ssim_real #  + l_g_projection_ssim_psuedo
+                l_g_total += l_g_projection_ssim_real # + l_g_projection_ssim_psuedo
                 loss_dict['l_g_projection_ssim_real'] = l_g_projection_ssim_real
                 # loss_dict['l_g_projection_ssim_psuedo'] = l_g_projection_ssim_psuedo
             # perceptual loss
@@ -215,48 +202,31 @@ class Unet_3D(BaseModel):
                 l_g_total += l_g_cycle_ssim
                 loss_dict['l_g_cycle_ssim'] = l_g_cycle_ssim
             # generator loss
-            fakeB_g_pred = self.net_d_B(output_aiso_proj)
-            l_g_A_gan = self.cri_gan(fakeB_g_pred, True, is_disc=False)
-            l_g_total += l_g_A_gan
-            loss_dict['l_g_A_gan'] = l_g_A_gan
-            
-            recA_g_pred = self.net_d_A(self.recA)
-            l_g_B_gan = self.cri_gan(recA_g_pred, True, is_disc=False)
-            l_g_total += l_g_B_gan
-            loss_dict['l_g_B_gan'] = l_g_B_gan
+            fake_g_pred = self.net_d(output_aiso_proj)
+            l_g_gan = self.cri_gan(fake_g_pred, True, is_disc=False)
+            l_g_total += l_g_gan
+            loss_dict['l_g_gan'] = l_g_gan
 
             l_g_total.backward()
             self.optimizer_g.step()
 
         # optimize net_d
-        for p in self.net_d_A.parameters():
-            p.requires_grad = True
-        for p in self.net_d_B.parameters():
+        for p in self.net_d.parameters():
             p.requires_grad = True
 
         self.optimizer_d.zero_grad()
         # discriminator loss
         # real
-        realB_d_pred = self.net_d_B(input_iso_proj)
-        l_d_realB = self.cri_gan(realB_d_pred, True, is_disc=True)
-        loss_dict['l_d_realB'] = l_d_realB
-        
-        realA_d_pred = self.net_d_A(self.realA)
-        l_d_realA = self.cri_gan(realA_d_pred, True, is_disc=True)
-        loss_dict['l_d_realA'] = l_d_realA
-        
-        (l_d_realA + l_d_realB).backward()
+        real_d_pred = self.net_d(input_iso_proj)
+        l_d_real = self.cri_gan(real_d_pred, True, is_disc=True)
+        loss_dict['l_d_real'] = l_d_real
+        l_d_real.backward()
         # fake
-        fakeB_d_pred = self.net_d_B(output_aiso_proj.detach())
-        l_d_fakeB = self.cri_gan(fakeB_d_pred, False, is_disc=True)
-        loss_dict['l_d_fakeB'] = l_d_fakeB
-        
-        fakeA_d_pred = self.net_d_A(self.recA.detach())
-        l_d_fakeA = self.cri_gan(fakeA_d_pred, False, is_disc=True)
-        loss_dict['l_d_fakeA'] = l_d_fakeA
-        
+        fake_d_pred = self.net_d(output_aiso_proj.detach())
+        l_d_fake = self.cri_gan(fake_d_pred, False, is_disc=True)
+        loss_dict['l_d_fake'] = l_d_fake
         # l_d_total = (l_d_real + l_d_fake) / 2
-        (l_d_fakeA + l_d_fakeB).backward()
+        l_d_fake.backward()
         
         self.optimizer_d.step()
 
@@ -268,6 +238,5 @@ class Unet_3D(BaseModel):
     def save(self, epoch, current_iter):
         self.save_network(self.net_g_A, 'net_g_A', current_iter)
         self.save_network(self.net_g_B, 'net_g_B', current_iter)
-        self.save_network(self.net_d_A, 'net_d_A', current_iter)
-        self.save_network(self.net_d_B, 'net_d_B', current_iter)
+        self.save_network(self.net_d, 'net_d', current_iter)
         self.save_training_state(epoch, current_iter)

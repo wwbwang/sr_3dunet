@@ -59,7 +59,7 @@ def main():
 
     pbar1 = tqdm(total=len(img_path_list), unit='tif_img', desc='inference')
     num_imgs = len(img_path_list)       # 17
-    percentiles=[0.01,0.9999] 
+    percentiles=[0.01,0.9985] 
     dataset_mean=0.2 
     
     for img_path in img_path_list:

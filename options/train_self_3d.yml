@@ -14,12 +14,12 @@ datasets:
   train:
     name: rotated_blocks
     type: Unet_3D_Dataset
-    dataroot_gt: /home/wangwb/workspace/sr_3dunet/datasets/monkey_skel/img_ori
+    dataroot_gt: /home/wangwb/workspace/sr_3dunet/datasets/monkey_skel/img_croped_rotated
     io_backend:
       type: disk    
     test_mode: False
     mean: 0.2 # 0.1535 # 0.0728 # 0.141
-    percentiles: [0.01,0.9999]
+    percentiles: [0.01,0.9985]
 
     use_flip: true
     use_rot: true
