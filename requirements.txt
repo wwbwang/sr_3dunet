@@ -8,3 +8,4 @@ psutil
 torch
 torchvision
 tqdm
+tifffile
