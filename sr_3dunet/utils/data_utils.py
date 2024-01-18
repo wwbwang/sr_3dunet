@@ -2,7 +2,19 @@ import random
 import torch
 import cv2
 import numpy as np
+import torch.nn.functional as F
+import argparse
+import math
 
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
 
 def random_crop_3d(imgs, patch_size, start_h=None, start_w=None, start_d=None):
 
@@ -165,49 +177,90 @@ def get_projection(img, iso_dimension):
         img_aniso1 = torch.max(img, dim=list_dimensions[1]).values
     return img_iso, img_aniso0, img_aniso1
 
-def get_rotated_img(raw_img):
-    raw_img = raw_img[None,]
-    _, height, width = raw_img.shape
-    max_size = max(height, width)
+# def get_rotated_img(raw_img):
+#     # raw_img = raw_img[None,]
+#     height, width, depth = raw_img.shape
+#     max_size = max(height, width, depth)
 
+#     desired_height = int(max_size * math.sqrt(2)) // 2 * 2
+#     desired_width = int(max_size * math.sqrt(2)) // 2 * 2
+#     desired_depth = int(max_size * math.sqrt(2)) // 2 * 2
+
+#     border_height = (desired_height - height) // 2
+#     border_width = (desired_width - width) // 2
+#     border_depth = (desired_depth - depth) // 2
+
+#     # center_x = desired_height // 2
+#     # center_y = desired_width // 2
+#     # center_z = desired_depth // 2
+    
+#     extend_raw_img = np.zeros # np.pad(raw_img, ((border_height, border_height), (0, 0), (border_depth, border_depth)), mode='constant')[0]
+    
+#     angle = 45
+#     theta = torch.tensor(
+#                 [[[math.cos(angle), 0, math.sin(angle), 0],
+#                 [0, 1, 0, 0],
+#                 [-math.sin(angle), 0, math.cos(angle), 0]] for _ in range(raw_img.shape[0])],
+#                 dtype=torch.float).to(raw_img.device)
+#     grid = torch.nn.functional.affine_grid(theta, extend_raw_img.size(), align_corners=True)
+#     rotated_raw_img = torch.nn.functional.grid_sample(img_pad, grid=grid, align_corners=True)
+    
+    
+    
+#     # rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+
+#     # rotated_raw_img = cv2.warpAffine(extend_raw_img, rotation_matrix, (desired_width, desired_height))
+#     return rotated_raw_img
+
+def get_rotated_img(raw_img, aniso_dimension=-2):
+    raw_img = raw_img.astype(np.float32)
+    list_img = []
+    for i in range(raw_img.shape[aniso_dimension]):
+        img = raw_img[..., i, :]
+        height, width = img.shape
+        max_size = max(height, width)
+
+        desired_height = int(max_size * 1.414213) // 2 * 2
+        desired_width = int(max_size * 1.414213) // 2 * 2
+
+        border_height = (desired_height - height) // 2
+        border_width = (desired_width - width) // 2
+
+        center_x = desired_height // 2
+        center_y = desired_height // 2
+        rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+
+        extend_img = np.pad(img, ((border_height, border_height), (border_width, border_width)), mode='constant')
+        rotated_img = cv2.warpAffine(extend_img, rotation_matrix, (desired_width, desired_height))
+        list_img.append(rotated_img)
+        
+    return extend_block(np.stack(list_img, axis=1))
+
+def get_anti_rotated_img(raw_img, origin_shape=(128, 128, 128), aniso_dimension=-2):
+    raw_img = raw_img.astype(np.float32)
+    list_img = []
+    origin_height, _, origin_width = origin_shape
+    max_size = max(origin_height, origin_width)
     desired_height = int(max_size * 1.414213) // 2 * 2
     desired_width = int(max_size * 1.414213) // 2 * 2
-
-    border_height = (desired_height - height) // 2
-    border_width = (desired_width - width) // 2
+    
+    border_height = (desired_height - origin_height) // 2
+    border_width = (desired_width - origin_width) // 2
 
     center_x = desired_height // 2
     center_y = desired_height // 2
-    rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+    
+    for i in range(raw_img.shape[aniso_dimension]):
+        img = raw_img[..., i, :]
+        img = img[:desired_height, :desired_width]
+        rotation_matrix_inv = cv2.getRotationMatrix2D((center_x, center_y), -45, 1)
 
-    extend_raw_img = np.pad(raw_img, ((0, 0), (border_height, border_height), (border_width, border_width)), mode='constant')[0]
-    rotated_raw_img = cv2.warpAffine(extend_raw_img, rotation_matrix, (desired_width, desired_height))
-    return rotated_raw_img
-
-# def get_rotated_img(raw_img, aniso_dimension):
-#     raw_img = raw_img.astype(np.float32)
-#     list_img = []
-#     for i in range(raw_img.shape[aniso_dimension]):
-#         img = raw_img[..., i, :]
-#         img = img[None,]
-#         _, height, width = img.shape
-#         max_size = max(height, width)
-
-#         desired_height = int(max_size * 1.414213) // 2 * 2
-#         desired_width = int(max_size * 1.414213) // 2 * 2
-
-#         border_height = (desired_height - height) // 2
-#         border_width = (desired_width - width) // 2
-
-#         center_x = desired_height // 2
-#         center_y = desired_height // 2
-#         rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
-
-#         extend_img = np.pad(img, ((0, 0), (border_height, border_height), (border_width, border_width)), mode='constant')[0]
-#         rotated_img = cv2.warpAffine(extend_img, rotation_matrix, (desired_width, desired_height))
-#         list_img.append(rotated_img)
+        rotated_img = cv2.warpAffine(img, rotation_matrix_inv, (desired_width, desired_height))
+        list_img.append(rotated_img[border_height:-border_height, border_width:-border_width])
         
-#     return np.stack(list_img)
+    out_img = np.stack(list_img, axis=1)
+    return out_img
+
 
 def get_rotated_projection(img, aniso_dimension=-2):   # 默认左上到右下倾斜
     if aniso_dimension == -2:
@@ -225,22 +278,28 @@ def get_rotated_projection(img, aniso_dimension=-2):   # 默认左上到右下�
         return "error"
 
 def extend_block(img, step_size=16, dim=3):
-    if dim==3:
-        h, w, d = img.shape
-        pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
-        pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
-        pad_depth = (step_size - d % step_size) if d % step_size != 0 else 0
-        
-        padded_img = np.pad(img, ((0, pad_height), (0, pad_width), (0, pad_depth)), mode='constant')
-        
-    elif dim==2:
-        h, w = img.shape
-        pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
-        pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
-        
-        padded_img = np.pad(img, ((0, pad_height), (0, pad_width)), mode='constant')
-    
-    return padded_img
+    def extend_block_(img):
+        if dim==3:
+            h, w, d = img.shape
+            pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
+            pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
+            pad_depth = (step_size - d % step_size) if d % step_size != 0 else 0
+            
+            padded_img = np.pad(img, ((0, pad_height), (0, pad_width), (0, pad_depth)), mode='constant') if isinstance(img, np.ndarray)\
+                else F.pad(img, (0, pad_depth, 0, pad_width, 0, pad_height), mode='constant') 
+        elif dim==2:
+            h, w = img.shape
+            pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
+            pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
+            
+            padded_img = np.pad(img, ((0, pad_height), (0, pad_width)), mode='constant') if isinstance(img, np.ndarray)\
+                else F.pad(img, (0, pad_width, 0, pad_height), mode='constant')
+        return padded_img
+                
+    if img.ndim > 3:
+        return extend_block_(img[0,0])[None, None]
+    else:
+        return extend_block_(img)
 
 def crop_block(img, step_size=16, dim=3):
     if dim==3:
@@ -262,32 +321,32 @@ def crop_block(img, step_size=16, dim=3):
 # !!! Just used in standard VISoR data
 # Aniso_dimension is -2 in source VISoR data
 # After rotation the isotropic dimension is -1, and the blur direction is horizontal in -2 and -3 (viewed in imagej)
-def rotate_block(raw_img, aniso_dimension=-2):
-    iso_dimension = -1
-    height, width, depth = raw_img.shape
-    max_size = max(height, depth)
+# def rotate_block(raw_img, aniso_dimension=-2):
+#     iso_dimension = -1
+#     height, width, depth = raw_img.shape
+#     max_size = max(height, depth)
     
-    desired_height = int(max_size * 1.414213) // 2 * 2
-    desired_depth = int(max_size * 1.414213) // 2 * 2
+#     desired_height = int(max_size * 1.414213) // 2 * 2
+#     desired_depth = int(max_size * 1.414213) // 2 * 2
     
-    border_height = (desired_height - height) // 2
-    border_depth = (desired_depth - depth) // 2
+#     border_height = (desired_height - height) // 2
+#     border_depth = (desired_depth - depth) // 2
     
-    raw_img = raw_img.transpose(1, 0, 2)
+#     raw_img = raw_img.transpose(1, 0, 2)
     
-    rotation_matrix = cv2.getRotationMatrix2D((desired_height // 2, desired_depth // 2), 45, 1)
-    rotation_matrix_inv = cv2.getRotationMatrix2D((desired_height // 2, desired_depth // 2), -45, 1)
+#     rotation_matrix = cv2.getRotationMatrix2D((desired_height // 2, desired_depth // 2), 45, 1)
+#     rotation_matrix_inv = cv2.getRotationMatrix2D((desired_height // 2, desired_depth // 2), -45, 1)
     
-    extend_raw_img = np.pad(raw_img, ((0, 0), (border_height, border_height), (border_depth, border_depth)), mode='constant')
-    rotated_raw_img = np.zeros_like(extend_raw_img)
-    for i in range(width):
-        rotated_raw_img[i] = cv2.warpAffine(extend_raw_img[i], rotation_matrix, (desired_depth, desired_height))
+#     extend_raw_img = np.pad(raw_img, ((0, 0), (border_height, border_height), (border_depth, border_depth)), mode='constant')
+#     rotated_raw_img = np.zeros_like(extend_raw_img)
+#     for i in range(width):
+#         rotated_raw_img[i] = cv2.warpAffine(extend_raw_img[i], rotation_matrix, (desired_depth, desired_height))
     
-    # out_img = np.zeros_like(rotated_raw_img)
-    # for i in range(width):
-    #     out_img[i] = cv2.warpAffine(xz_img[i], rotation_matrix_inv, (desired_depth, desired_height))
+#     # out_img = np.zeros_like(rotated_raw_img)
+#     # for i in range(width):
+#     #     out_img[i] = cv2.warpAffine(xz_img[i], rotation_matrix_inv, (desired_depth, desired_height))
         
-    # out_img = out_img[:, border_height:-border_height, border_depth:-border_depth]
-    # out_img = out_img.transpose(1, 0, 2)
+#     # out_img = out_img[:, border_height:-border_height, border_depth:-border_depth]
+#     # out_img = out_img.transpose(1, 0, 2)
     
-    return rotated_raw_img # , iso_dimension
+#     return rotated_raw_img # , iso_dimension
