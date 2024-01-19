@@ -1,5 +1,5 @@
 
-branch_name=one_step # _mean0.254 # no_pretrain # "both_loss_GAN" # "just_ssim"
+branch_name=one_step_mixsize # _mean0.254 # no_pretrain # "both_loss_GAN" # "just_ssim"
 iter='10000000000'  # nan Appoint in terminal
 
 # 从命令行获取参数
@@ -24,4 +24,4 @@ CUDA_VISIBLE_DEVICES=4 python scripts/inference_pretrained.py \
     -o /home/wangwb/workspace/sr_3dunet/results/${branch_name}_net_g_${iter}\
     --model_path /home/wangwb/workspace/sr_3dunet/experiments/${branch_name}/models/net_g_A_${iter}.pth\
     --model_back_path /home/wangwb/workspace/sr_3dunet/experiments/${branch_name}/models/net_g_B_${iter}.pth\
-    --piece_flag False --piece_size 128 --overlap 16 --step_size 16 --rotated_flag False
+    --piece_flag True --piece_size 128 --overlap 16 --step_size 16 --rotated_flag True

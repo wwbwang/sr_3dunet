@@ -23,6 +23,9 @@ class Unet_3D_Dataset(data.Dataset):
         self.keys = []
         self.gt_root = opt['dataroot_gt']
         self.iso_dimension = opt['iso_dimension']
+        self.gt_size = opt['gt_size']
+        self.gt_probs = opt['gt_probs']
+        self.gt_size = random.choices(self.gt_size, self.gt_probs)[0]
         self.mean = opt['mean']
         self.percentiles = opt['percentiles']
         logger = get_root_logger()
@@ -52,7 +55,7 @@ class Unet_3D_Dataset(data.Dataset):
         img = tifffile.imread(img_name)
         
         # random crop
-        img = random_crop_3d(img, self.opt['gt_size'])
+        img = random_crop_3d(img, self.gt_size)
         # augmentation
         img = augment_3d(img, self.iso_dimension, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
