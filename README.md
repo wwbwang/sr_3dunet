@@ -4,7 +4,7 @@
 
     ```bash
     git clone https://github.com/wwbwang/sr_3dunet
-    git checkout sr_3dunet
+    git checkout stable_version_
     cd sr_3dunet
     ```
 2. Install
