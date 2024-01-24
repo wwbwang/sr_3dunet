@@ -177,6 +177,17 @@ def get_projection(img, iso_dimension):
         img_aniso1 = torch.max(img, dim=list_dimensions[1]).values
     return img_iso, img_aniso0, img_aniso1
 
+def affine_img(img, iso_dimension):
+    # img = augment_3d(img, iso_dimension)
+    
+    list_dimensions = [-1, -2, -3]
+    list_dimensions.remove(iso_dimension)
+    aniso_dimension = random.choice(list_dimensions)
+    
+    img = img.transpose(iso_dimension, aniso_dimension)
+
+    return img
+
 # def get_rotated_img(raw_img):
 #     # raw_img = raw_img[None,]
 #     height, width, depth = raw_img.shape

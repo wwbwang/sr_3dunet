@@ -15,7 +15,7 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
-from ..utils.data_utils import get_projection
+from ..utils.data_utils import get_projection, affine_img
 
 @MODEL_REGISTRY.register()
 class Unet_3D(BaseModel):
@@ -123,12 +123,18 @@ class Unet_3D(BaseModel):
 
         if train_opt.get('gan_opt'):
             self.cri_gan = build_loss(train_opt['gan_opt']).to(self.device)
+        else:
+            self.cri_gan = None
         
         if train_opt.get('cycle_opt'):
             self.cri_cycle = build_loss(train_opt['cycle_opt']).to(self.device)
+        else:
+            self.cri_cycle = None
 
         if train_opt.get('cycle_ssim_opt'):
             self.cri_cycle_ssim = build_loss(train_opt['cycle_ssim_opt']).to(self.device)
+        else:
+            self.cri_cycle_ssim = None
             
         self.net_d_iters = train_opt.get('net_d_iters', 1)
         self.net_d_init_iters = train_opt.get('net_d_init_iters', 0)
@@ -153,6 +159,9 @@ class Unet_3D(BaseModel):
         self.lq = data.to(self.device)
 
     def optimize_parameters(self, current_iter):
+        
+        iso_dimension = self.opt['datasets']['train'].get('iso_dimension', None)
+        
         # optimize net_g
         for p in self.net_d_A.parameters():
             p.requires_grad = False
@@ -167,7 +176,6 @@ class Unet_3D(BaseModel):
         # self.fakeB = torch.clip(self.fakeB, 0, 1)
         
         # get iso and aniso projection arrays
-        iso_dimension = self.opt['datasets']['train'].get('iso_dimension', None)
         input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, iso_dimension)
         output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.fakeB, iso_dimension)
         aiso_proj_index = random.choice(['0', '1'])
@@ -179,7 +187,19 @@ class Unet_3D(BaseModel):
 
         l_g_total = 0
         loss_dict = OrderedDict()
-        if (current_iter % self.net_d_iters == 0 and current_iter > self.net_d_init_iters):              
+        if (current_iter % self.net_d_iters == 0 and current_iter > self.net_d_init_iters):     
+            # cycle loss
+            if self.cri_cycle:
+                l_g_cycle = self.cri_cycle(self.realA, self.recA)
+                # l_g_total += l_g_cycle
+                loss_dict['l_g_cycle'] = l_g_cycle
+                l_g_cycle.backward(retain_graph=True)
+            # cycle_ssim loss
+            if self.cri_cycle_ssim:
+                l_g_cycle_ssim = self.cri_cycle_ssim(self.realA, self.recA)
+                # l_g_total += l_g_cycle_ssim
+                loss_dict['l_g_cycle_ssim'] = l_g_cycle_ssim       
+                l_g_cycle_ssim.backward(retain_graph=True)  
             # pixel loss
             if self.cri_pix:
                 l_g_pix_real = self.cri_pix(output_iso_proj, input_iso_proj)
@@ -203,23 +223,19 @@ class Unet_3D(BaseModel):
                 if l_g_style is not None:
                     l_g_total += l_g_style
                     loss_dict['l_g_style'] = l_g_style
-            # cycle loss
-            if self.cri_cycle:
-                l_g_cycle = self.cri_cycle(self.realA, self.recA)
-                l_g_total += l_g_cycle
-                loss_dict['l_g_cycle'] = l_g_cycle
-            # cycle_ssim loss
-            if self.cri_cycle_ssim:
-                l_g_cycle_ssim = self.cri_cycle_ssim(self.realA, self.recA)
-                l_g_total += l_g_cycle_ssim
-                loss_dict['l_g_cycle_ssim'] = l_g_cycle_ssim
+            
+            # self.optimizer_g.step()
+            # self.optimizer_g.zero_grad()
+            
+            self.affine_fakeB = affine_img(self.fakeB, iso_dimension)
+            self.affine_recA = self.net_g_B(self.affine_fakeB)        # 两个net_g_B冲突
             # generator loss
             fakeB_g_pred = self.net_d_B(output_aiso_proj)
             l_g_A_gan = self.cri_gan(fakeB_g_pred, True, is_disc=False)
             l_g_total += l_g_A_gan
             loss_dict['l_g_A_gan'] = l_g_A_gan
             
-            recA_g_pred = self.net_d_A(self.recA)
+            recA_g_pred = self.net_d_A(self.affine_recA)
             l_g_B_gan = self.cri_gan(recA_g_pred, True, is_disc=False)
             l_g_total += l_g_B_gan
             loss_dict['l_g_B_gan'] = l_g_B_gan
@@ -250,7 +266,7 @@ class Unet_3D(BaseModel):
         l_d_fakeB = self.cri_gan(fakeB_d_pred, False, is_disc=True)
         loss_dict['l_d_fakeB'] = l_d_fakeB
         
-        fakeA_d_pred = self.net_d_A(self.recA.detach())
+        fakeA_d_pred = self.net_d_A(self.affine_recA.detach())
         l_d_fakeA = self.cri_gan(fakeA_d_pred, False, is_disc=True)
         loss_dict['l_d_fakeA'] = l_d_fakeA
         
