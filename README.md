@@ -3,7 +3,8 @@
 1. Clone repo
 
     ```bash
-    git clone https://github.com/wwbwang/sr_3dunet/tree/stable_version_
+    git clone https://github.com/wwbwang/sr_3dunet
+    git checkout sr_3dunet
     cd sr_3dunet
     ```
 2. Install
