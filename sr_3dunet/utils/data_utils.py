@@ -183,7 +183,7 @@ def affine_img(img, iso_dimension):
     list_dimensions = [-1, -2, -3]
     list_dimensions.remove(iso_dimension)
     aniso_dimension = random.choice(list_dimensions)
-    # aniso_dimension = -2        # FIXME
+    aniso_dimension = -2        # FIXME
     
     img = img.transpose(iso_dimension, aniso_dimension)
 

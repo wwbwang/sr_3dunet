@@ -103,6 +103,7 @@ def main():
         affine_out_img = affine_img(out_img, -1)
         back_img = model_back(out_img)
         affine_back_img = model_back(affine_out_img)
+        affine_back_img = affine_img(affine_back_img, -1)
         
         
         if args.rotated_flag:
