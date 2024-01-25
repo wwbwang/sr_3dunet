@@ -15,7 +15,7 @@ from tqdm import tqdm
 from functools import partial
 
 from sr_3dunet.utils.inference_base import get_base_argument_parser
-from sr_3dunet.utils.data_utils import preprocess, postprocess, extend_block, get_rotated_img, get_anti_rotated_img, str2bool
+from sr_3dunet.utils.data_utils import preprocess, postprocess, extend_block, get_rotated_img, get_anti_rotated_img, str2bool, affine_img
 from scripts.get_MIP import get_and_save_MIP
 from scripts.inference_big_tif import handle_bigtif
 from basicsr.data.transforms import mod_crop
@@ -76,7 +76,9 @@ def main():
     # prepare output dir
     os.makedirs(os.path.join(args.output, "input"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "output"), exist_ok=True)
+    os.makedirs(os.path.join(args.output, "output_affine"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "back"), exist_ok=True)
+    os.makedirs(os.path.join(args.output, "back_affine"), exist_ok=True)
     percentiles=[0.01,0.9985] 
     dataset_mean=0
 
@@ -98,20 +100,30 @@ def main():
         img = torch.from_numpy(img).to(device)     # to float32
 
         out_img = model(img)
+        affine_out_img = affine_img(out_img, -1)
         back_img = model_back(out_img)
+        affine_back_img = model_back(affine_out_img)
         
         
         if args.rotated_flag:
             out_img = get_anti_rotated_img(out_img[0,0].cpu().numpy(), origin_shape)[None, None]
+            affine_out_img = get_anti_rotated_img(affine_out_img[0,0].cpu().numpy(), origin_shape)[None, None]
             back_img = get_anti_rotated_img(back_img[0,0].cpu().numpy(), origin_shape)[None, None]
+            affine_back_img = get_anti_rotated_img(affine_back_img[0,0].cpu().numpy(), origin_shape)[None, None]
         else:
             out_img = out_img[0,0].cpu().numpy()
+            affine_out_img = affine_out_img[0,0].cpu().numpy()
             back_img = back_img[0,0].cpu().numpy()
+            affine_back_img = affine_back_img[0,0].cpu().numpy()
         
         tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path),
                          remove_outer_layer(postprocess(out_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "output_affine", "output_affine" + img_path),
+                         remove_outer_layer(postprocess(affine_out_img, min_value, max_value, dataset_mean), args.overlap))
         tifffile.imwrite(os.path.join(args.output, "back", "back" + img_path),
                          remove_outer_layer(postprocess(back_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "back_affine", "back_affine" + img_path),
+                         remove_outer_layer(postprocess(affine_back_img, min_value, max_value, dataset_mean), args.overlap))
         
         # get_and_save_MIP(postprocess(out_img.cpu().numpy(), min_value, max_value, dataset_mean),
         #     os.path.join(args.output, "output_proj"), "output"+img_path)

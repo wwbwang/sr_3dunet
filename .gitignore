@@ -145,3 +145,6 @@ launsh.json
 .vscode
 
 tb_logger_backup
+
+*.tif
+*.tiff

@@ -229,6 +229,15 @@ class Unet_3D(BaseModel):
             
             self.affine_fakeB = affine_img(self.fakeB, iso_dimension)
             self.affine_recA = self.net_g_B(self.affine_fakeB)        # 两个net_g_B冲突
+            
+            if current_iter % 100 == 0:
+                    import tifffile
+                    tifffile.imsave(str(current_iter) + "recA.tif", self.recA[0][0].cpu().detach().numpy())
+                    tifffile.imsave(str(current_iter) + "affine_recA.tif", self.affine_recA[0][0].cpu().detach().numpy())
+                    tifffile.imsave(str(current_iter) + "fakeB.tif", self.fakeB[0][0].cpu().detach().numpy())
+                    tifffile.imsave(str(current_iter) + "realA.tif", self.realA[0][0].cpu().detach().numpy())
+                    tifffile.imsave(str(current_iter) + "affine_fakeB.tif", self.affine_fakeB[0][0].cpu().detach().numpy())
+            
             # generator loss
             fakeB_g_pred = self.net_d_B(output_aiso_proj)
             l_g_A_gan = self.cri_gan(fakeB_g_pred, True, is_disc=False)
@@ -253,17 +262,17 @@ class Unet_3D(BaseModel):
         # discriminator loss
         # real
         realB_d_pred = self.net_d_B(input_iso_proj)
-        l_d_realB = self.cri_gan(realB_d_pred, True, is_disc=True)
+        l_d_realB = self.cri_gan(realB_d_pred, True, is_disc=True) #  * 0.2
         loss_dict['l_d_realB'] = l_d_realB
         
         realA_d_pred = self.net_d_A(self.realA)
         l_d_realA = self.cri_gan(realA_d_pred, True, is_disc=True)
         loss_dict['l_d_realA'] = l_d_realA
         
-        (l_d_realA + l_d_realB).backward()
+        (l_d_realA*5 + l_d_realB).backward()
         # fake
         fakeB_d_pred = self.net_d_B(output_aiso_proj.detach())
-        l_d_fakeB = self.cri_gan(fakeB_d_pred, False, is_disc=True)
+        l_d_fakeB = self.cri_gan(fakeB_d_pred, False, is_disc=True) #  * 0.2
         loss_dict['l_d_fakeB'] = l_d_fakeB
         
         fakeA_d_pred = self.net_d_A(self.affine_recA.detach())
@@ -271,7 +280,7 @@ class Unet_3D(BaseModel):
         loss_dict['l_d_fakeA'] = l_d_fakeA
         
         # l_d_total = (l_d_real + l_d_fake) / 2
-        (l_d_fakeA + l_d_fakeB).backward()
+        (l_d_fakeA*5 + l_d_fakeB).backward()
         
         self.optimizer_d.step()
 

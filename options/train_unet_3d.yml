@@ -1,7 +1,7 @@
 # general settings
 name: one_step_mixsize_affine # no_pretrain # both_loss_GAN
 model_type: Unet_3D
-num_gpu: 2  # set num_gpu: 0 for cpu mode
+num_gpu: 3  # set num_gpu: 0 for cpu mode
 manual_seed: 0
 
 # # USM the ground-truth
@@ -29,7 +29,7 @@ datasets:
     # data loader
     use_shuffle: true
     num_worker_per_gpu: 10
-    batch_size_per_gpu: 2 # 4 # 16
+    batch_size_per_gpu: 4 # 16
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
     pin_memory: True
@@ -69,8 +69,8 @@ network_d_B:  # d_B
 path:
   pretrain_network_g_A: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_A_12000.pth
   pretrain_network_g_B: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_B_12000.pth
-  pretrain_network_d_A: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_d_A_12000.pth
-  pretrain_network_d_B: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_d_B_12000.pth
+  pretrain_network_d_A: ~ # /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_d_A_12000.pth
+  pretrain_network_d_B: ~ # /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_d_B_12000.pth
   param_key_g_A: params
   param_key_g_B: params
   strict_load_g: true
@@ -161,7 +161,7 @@ train:
 
 # logging settings
 logger:
-  print_freq: 100
+  print_freq: 50
   save_checkpoint_freq: !!float 500
   use_tb_logger: true
   wandb:
