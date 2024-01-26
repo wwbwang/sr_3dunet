@@ -46,10 +46,10 @@ class ResidualBlock(nn.Module):
 
         self.double_conv = nn.Sequential(
             Conv(in_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            norm_layer(out_channels),
+            # norm_layer(out_channels),
             nn.ReLU(inplace=True),
             Conv(out_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            norm_layer(out_channels),
+            # norm_layer(out_channels),
         )
 
         self.activate = nn.ReLU(inplace=True)
@@ -119,10 +119,10 @@ class DoubleConv(nn.Module):
 
         self.conv = nn.Sequential(
             Conv(in_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            norm_layer(out_channels),
+            # norm_layer(out_channels),
             nn.ReLU(inplace=True),
             Conv(out_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            norm_layer(out_channels),
+            # norm_layer(out_channels),
             nn.ReLU(inplace=True)
         )
 
@@ -213,12 +213,12 @@ class NLayerDiscriminator(nn.Module):
         for i in range(1, n_layers-1):
             sequence += [
                 Conv(features[i-1], features[i], kernel_size=kw, stride=2, padding=padw, bias=use_bias),
-                norm_layer(features[i]),
+                # norm_layer(features[i]),
                 nn.LeakyReLU(0.2, True)
             ]
         sequence += [
             Conv(features[-2], features[-1], kernel_size=kw, stride=1, padding=padw, bias=use_bias),
-            norm_layer(features[-1]),
+            # norm_layer(features[-1]),
             nn.LeakyReLU(0.2, True)
         ]
 

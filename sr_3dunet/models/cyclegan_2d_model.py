@@ -15,13 +15,11 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
-from ..utils.data_utils import get_projection, affine_img
-
 @MODEL_REGISTRY.register()
-class CycleGAN_3d(BaseModel):
+class CycleGAN_2d(BaseModel):
 
     def __init__(self, opt):
-        super(CycleGAN_3d, self).__init__(opt)
+        super(CycleGAN_2d, self).__init__(opt)
 
         # define network
         self.net_g_A = build_network(opt['network_g_A'])
@@ -124,8 +122,6 @@ class CycleGAN_3d(BaseModel):
 
     def optimize_parameters(self, current_iter):
         
-        iso_dimension = self.opt['datasets']['train'].get('iso_dimension', None)
-        
         # optimize net_g
         for p in self.net_d_A.parameters():
             p.requires_grad = False
@@ -134,7 +130,7 @@ class CycleGAN_3d(BaseModel):
 
         self.optimizer_g.zero_grad()
         self.realA = self.lq
-        self.realB = affine_img(self.hq, iso_dimension)
+        self.realB = self.hq
         
         self.fakeA = self.net_g_B(self.realB)
         self.fakeB = self.net_g_A(self.realA)
