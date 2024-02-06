@@ -19,7 +19,7 @@
                 // "options/pretrain_unet_3d.yml",
                 // "options/train_unet_3d.yml",
                 // "options/train_projection_cyclegan_rotatedVISoR.yml",
-                "options/cyclegan_3d.yml",
+                "options/cyclegan_2d.yml",
             ],
             "justMyCode": false
         }

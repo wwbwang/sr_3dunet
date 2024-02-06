@@ -88,6 +88,11 @@ class CycleGAN_2d(BaseModel):
         else:
             self.cri_gan = None
         
+        if train_opt.get('classifier_opt'):
+            self.cri_classifier = build_loss(train_opt['classifier_opt']).to(self.device)
+        else:
+            self.cri_classifier = None
+
         if train_opt.get('cycle_opt'):
             self.cri_cycle = build_loss(train_opt['cycle_opt']).to(self.device)
         else:
@@ -160,13 +165,17 @@ class CycleGAN_2d(BaseModel):
                 l_g_total += l_g_cycle_ssim_A +l_g_cycle_ssim_B
             
             # generator loss
-            recA_g_pred = self.net_d_A(self.recA)
+            recA_g_pred, recA_g_label = self.net_d_A(self.recA)
             l_g_B_gan = self.cri_gan(recA_g_pred, True, is_disc=False)
-            recB_g_pred = self.net_d_B(self.recB)
+            l_g_B_gan_class = self.cri_classifier(recA_g_label, True, is_disc=False)
+            recB_g_pred, recB_g_label = self.net_d_B(self.recB)
             l_g_A_gan = self.cri_gan(recB_g_pred, True, is_disc=False)
+            l_g_A_gan_class = self.cri_classifier(recB_g_label, True, is_disc=False)
             
             loss_dict['l_g_A_gan'] = l_g_A_gan
             loss_dict['l_g_B_gan'] = l_g_B_gan
+            loss_dict['l_g_A_gan_class'] = l_g_A_gan_class
+            loss_dict['l_g_B_gan_class'] = l_g_B_gan_class
             l_g_total += l_g_A_gan + l_g_B_gan
 
             l_g_total.backward()
@@ -181,24 +190,32 @@ class CycleGAN_2d(BaseModel):
         self.optimizer_d.zero_grad()
         # discriminator loss
         # real
-        realA_d_pred = self.net_d_A(self.realA)
+        realA_d_pred, realA_d_label = self.net_d_A(self.realA)
         l_d_realA = self.cri_gan(realA_d_pred, True, is_disc=True)
+        l_d_realA_class = self.cri_gan(realA_d_label, True, is_disc=True)
         loss_dict['l_d_realA'] = l_d_realA
-        l_d_realA.backward()
-        realB_d_pred = self.net_d_B(self.realB)
+        loss_dict['l_d_realA_class'] = l_d_realA_class
+        (l_d_realA+l_d_realA_class).backward()
+        realB_d_pred, realB_d_label = self.net_d_B(self.realB)
         l_d_realB = self.cri_gan(realB_d_pred, True, is_disc=True)
+        l_d_realB_class = self.cri_gan(realB_d_label, True, is_disc=True)
         loss_dict['l_d_realB'] = l_d_realB
-        l_d_realB.backward()
+        loss_dict['l_d_realB_class'] = l_d_realB_class
+        (l_d_realB+l_d_realB_class).backward()
         
         # fake
-        fakeA_d_pred = self.net_d_A(self.recA.detach())
+        fakeA_d_pred, fakeA_d_label = self.net_d_A(self.recA.detach())
         l_d_fakeA = self.cri_gan(fakeA_d_pred, False, is_disc=True)
+        l_d_fakeA_class = self.cri_gan(fakeA_d_label, False, is_disc=True)
         loss_dict['l_d_fakeA'] = l_d_fakeA
-        l_d_fakeA.backward()
-        fakeB_d_pred = self.net_d_B(self.recB.detach())
+        loss_dict['l_d_fakeA_class'] = l_d_fakeA_class
+        (l_d_fakeA+l_d_fakeA_class).backward()
+        fakeB_d_pred, fakeB_d_label = self.net_d_B(self.recB.detach())
         l_d_fakeB = self.cri_gan(fakeB_d_pred, False, is_disc=True)
+        l_d_fakeB_class = self.cri_gan(fakeB_d_label, False, is_disc=True)
         loss_dict['l_d_fakeB'] = l_d_fakeB
-        l_d_fakeB.backward()
+        loss_dict['l_d_fakeB_class'] = l_d_fakeB_class
+        (l_d_fakeB+l_d_fakeB_class).backward()
         
         self.optimizer_d.step()
 

@@ -136,6 +136,7 @@ class UNet_3d_Generator(nn.Module):
         super(UNet_3d_Generator, self).__init__()
         self.downs = nn.ModuleList()
         self.ups = nn.ModuleList()
+        self.dim = dim
 
         if dim == 2:
             Conv = nn.Conv2d
@@ -167,8 +168,11 @@ class UNet_3d_Generator(nn.Module):
             self.ups.append(DoubleConv(feature*2, feature, norm_type=norm_type, dim=dim))
 
         self.final_conv = Conv(features[0], out_channels, kernel_size=1)
+        
+
 
     def forward(self, x):
+        
         input = x
         skip_connections = []
 
@@ -188,7 +192,8 @@ class UNet_3d_Generator(nn.Module):
             x = self.ups[i+1](x)
 
         x = self.final_conv(x)
-        return x + input
+        res = x + input
+        return res
 
 # ==========
 # Discriminator
