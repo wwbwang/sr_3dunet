@@ -103,19 +103,23 @@ class ClassDiscriminator(nn.Module):
             nn.LeakyReLU(0.2, True)
         ]
 
-        sequence += [Conv(features[-1], 1, kernel_size=kw, stride=1, padding=padw)]  # output 1 channel prediction map
+        # sequence += [Conv(features[-1], 1, kernel_size=kw, stride=1, padding=padw)]  # output 1 channel prediction map
+        self.final_conv = Conv(features[-1], 1, kernel_size=kw, stride=1, padding=padw)
+        self.final_fea_conv = Conv(features[-1], 16, kernel_size=kw, stride=1, padding=padw)
         self.model = nn.Sequential(*sequence)
         # aux-classifier fc
         if self.dim == 2:
-            self.fc_num = 128*1*14*14
-        elif self.dim == 3:
-            self.fc_num = 128*1*14*14*14
+            self.fc_num = 128*16*14*14
+        # elif self.dim == 3:
+        #     self.fc_num = 128*1*14*14*14
         self.fc_aux = nn.Linear(self.fc_num, 1)
 
     def forward(self, input):
-        output = self.model(input)
+        feature = self.model(input)
+        output = self.final_conv(feature)
         
-        class_res = output.view(-1, self.fc_num)
+        feature = self.final_fea_conv(feature)
+        class_res = feature.view(-1, self.fc_num)
         class_res = self.fc_aux(class_res)
         class_res = nn.Sigmoid()(class_res).view(-1, 1).squeeze(1)
         
