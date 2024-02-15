@@ -55,14 +55,14 @@ network_g_cla:
   dim: 2
 
 network_d_A:
-  type: ClassDiscriminator
+  type: ProjectionDiscriminator
   in_channels: 1
   features: [64, 128, 256]
   norm_type: 'batch'
   dim: 2
 
 network_d_B:  # d_B
-  type: ClassDiscriminator
+  type: ProjectionDiscriminator
   in_channels: 1
   features: [64, 128, 256]
   norm_type: 'batch'
