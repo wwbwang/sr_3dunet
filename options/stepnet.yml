@@ -1,5 +1,5 @@
 # general settings
-name: stepnet
+name: pure-stepnet
 model_type: StepNet_Model
 num_gpu: 4  # set num_gpu: 0 for cpu mode
 manual_seed: 0
@@ -27,8 +27,8 @@ datasets:
     iso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
 
     # data loader
-    use_shuffle: true
-    num_worker_per_gpu: 10
+    use_shuffle6: true
+    num_worker_per_gpu: 6
     batch_size_per_gpu: 2 # 4 # 16
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
@@ -51,6 +51,13 @@ network_g_B:
   norm_type: instance
   dim: 3
 
+network_d_A:
+  type: CubeDiscriminator
+  in_channels: 1
+  features: [64, 128, 256]
+  norm_type: 'batch'
+  dim: 3
+
 network_d_proj:
   type: ProjectionDiscriminator
   in_channels: 1
@@ -67,8 +74,8 @@ network_d_iso:
 
 # path
 path:
-  pretrain_network_g_A: ~
-  pretrain_network_g_B: ~
+  pretrain_network_g_A: ~ # /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_A_12000.pth
+  pretrain_network_g_B: ~ # /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_B_12000.pth
   pretrain_network_d_proj: ~
   pretrain_network_d_iso: ~
   param_key_g_A: params

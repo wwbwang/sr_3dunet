@@ -1,5 +1,5 @@
 
-branch_name=stepnet
+branch_name=unet_3d # pure-stepnet
 iter='10000000000'  # nan Appoint in terminal
 
 # 从命令行获取参数

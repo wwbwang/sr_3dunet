@@ -155,8 +155,8 @@ class StepNet_Model(BaseModel):
         self.affine_fakeB = affine_img(self.fakeB)
         
         self.recA1 = self.net_g_B(self.fakeB)
-        self.fakeC = self.net_g_B(self.affine_fakeB)
-        self.recA2 = self.net_g_B(affine_img(self.net_g_A(self.fakeC)))
+        # self.fakeC = self.net_g_B(self.affine_fakeB)
+        # self.recA2 = self.net_g_B(affine_img(self.net_g_A(self.fakeC)))
         
         # get iso and aniso projection arrays
         input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, iso_dimension)
@@ -173,41 +173,44 @@ class StepNet_Model(BaseModel):
         if (current_iter % self.net_d_iters == 0 and current_iter > self.net_d_init_iters):     
             # cycle loss
             if self.cri_cycle:
-                l_cycle1 = self.cri_cycle(self.realA, self.recA1)
-                l_cycle2 = self.cri_cycle(self.realA, self.recA2)
-                l_total += l_cycle1 + l_cycle2
+                l_cycle1 = self.cri_cycle(self.realA, self.recA1) + self.cri_cycle_ssim(self.realA, self.recA1)
+                # l_cycle2 = self.cri_cycle(self.realA, self.recA2) + self.cri_cycle_ssim(self.realA, self.recA2)
+                l_total += l_cycle1 # + l_cycle2
                 loss_dict['l_cycle1'] = l_cycle1
-                loss_dict['l_cycle2'] = l_cycle2
-            # cycle_ssim loss
-            if self.cri_cycle_ssim:
-                l_ssim_cycle1 = self.cri_cycle_ssim(self.realA, self.recA1)
-                l_ssim_cycle2 = self.cri_cycle_ssim(self.realA, self.recA2)
-                l_total += l_ssim_cycle1 + l_ssim_cycle2
-                loss_dict['l_ssim_cycle1'] = l_ssim_cycle1
-                loss_dict['l_ssim_cycle2'] = l_ssim_cycle2
+                # loss_dict['l_cycle2'] = l_cycle2
             # projection loss
             if self.cri_projection:
-                l_iso_proj = self.cri_projection(output_iso_proj, input_iso_proj)
+                l_iso_proj = self.cri_projection(output_iso_proj, input_iso_proj) + self.cri_projection_ssim(output_iso_proj, input_iso_proj)
                 l_total += l_iso_proj
                 loss_dict['l_iso_proj'] = l_iso_proj
-            # projection ssim loss
-            if self.cri_projection_ssim:
-                l_iso_proj_ssim = self.cri_projection_ssim(output_iso_proj, input_iso_proj)
-                l_total += l_iso_proj_ssim
-                loss_dict['l_iso_proj_ssim'] = l_iso_proj_ssim
 
             # generator loss
-            fakeB_g_anisoproj_pred = self.net_d_proj(output_aiso_proj)
-            l_g_A = self.cri_gan(fakeB_g_anisoproj_pred, True, is_disc=False)
-            l_total += l_g_A
-            loss_dict['l_g_A'] = l_g_A
+            # fakeB_g_anisoproj_pred = self.net_d_proj(output_aiso_proj)
+            # l_g_A = self.cri_gan(fakeB_g_anisoproj_pred, True, is_disc=False)
+            # l_total += l_g_A
+            # loss_dict['l_g_A'] = l_g_A
             
-            fakeC_g_pred = self.net_d_iso(self.fakeC)
-            l_g_A2C = self.cri_gan(fakeC_g_pred, True, is_disc=False)
-            l_total += l_g_A2C
-            loss_dict['l_g_A2C'] = l_g_A2C
-
+            recA1_g_pred = self.net_d_iso(self.recA1)
+            l_g_recA1 = self.cri_gan(recA1_g_pred, True, is_disc=False)
+            l_total += l_g_recA1
+            loss_dict['l_g_recA1'] = l_g_recA1
+            
             l_total.backward()
+
+            # recA2_g_pred = self.net_d_iso(self.recA2)
+            # l_g_recA2 = self.cri_gan(recA2_g_pred, True, is_disc=False)
+            # l_total += l_g_recA2
+            # l_g_recA2.backward(retain_graph=True)
+            # loss_dict['l_g_recA2'] = l_g_recA2
+            
+            # fakeC_g_pred = self.net_d_iso(self.fakeC)
+            # l_g_A2C = self.cri_gan(fakeC_g_pred, True, is_disc=False)
+            # l_total += l_g_A2C
+            # l_g_A2C.backward()
+            # loss_dict['l_g_A2C'] = l_g_A2C
+            
+            loss_dict['l_total'] = l_total
+            
             self.optimizer_g.step()
 
         # optimize net_d
@@ -219,24 +222,33 @@ class StepNet_Model(BaseModel):
         self.optimizer_d.zero_grad()
         # discriminator loss
         # real
-        realB_g_anisoproj_pred = self.net_d_proj(input_iso_proj)
-        l_d_real_B = self.cri_gan(realB_g_anisoproj_pred, True, is_disc=True)
-        loss_dict['l_d_real_B'] = l_d_real_B
-        l_d_real_B.backward()
+        # realB_g_anisoproj_pred = self.net_d_proj(input_iso_proj)
+        # l_d_real_B = self.cri_gan(realB_g_anisoproj_pred, True, is_disc=True)
+        # loss_dict['l_d_real_B'] = l_d_real_B
+        # l_d_real_B.backward()
         realC_g_pred = self.net_d_iso(self.realA)   # same as A
         l_d_real_A2C = self.cri_gan(realC_g_pred, True, is_disc=True)
         loss_dict['l_d_real_A2C'] = l_d_real_A2C
         l_d_real_A2C.backward()
         
         # fake
-        fakeB_d_anisoproj_pred = self.net_d_proj(output_aiso_proj.detach())
-        l_d_fake_B = self.cri_gan(fakeB_d_anisoproj_pred, False, is_disc=False)
-        loss_dict['l_d_fake_B'] = l_d_fake_B
-        l_d_fake_B.backward()
-        fakeC_d_pred = self.net_d_iso(self.fakeC.detach())
-        l_d_fake_A2C = self.cri_gan(fakeC_d_pred, False, is_disc=False)
-        loss_dict['l_d_fake_A2C'] = l_d_fake_A2C
-        l_d_fake_A2C.backward()
+        # fakeB_d_anisoproj_pred = self.net_d_proj(output_aiso_proj.detach())
+        # l_d_fake_B = self.cri_gan(fakeB_d_anisoproj_pred, False, is_disc=False)
+        # loss_dict['l_d_fake_B'] = l_d_fake_B
+        # l_d_fake_B.backward()
+        # fakeC_d_pred = self.net_d_iso(self.fakeC.detach())
+        # l_d_fake_A2C = self.cri_gan(fakeC_d_pred, False, is_disc=False)
+        # loss_dict['l_d_fake_A2C'] = l_d_fake_A2C
+        # l_d_fake_A2C.backward()
+        
+        recA1_d_pred = self.net_d_iso(self.recA1.detach())
+        l_d_recA1 = self.cri_gan(recA1_d_pred, False, is_disc=False)
+        loss_dict['l_d_recA1'] = l_d_recA1
+        l_d_recA1.backward()
+        # recA2_d_pred = self.net_d_iso(self.recA2.detach())
+        # l_d_recA2 = self.cri_gan(recA2_d_pred, False, is_disc=False)
+        # loss_dict['l_d_recA2'] = l_d_recA2
+        # l_d_recA2.backward()
         
         self.optimizer_d.step()
 
