@@ -40,7 +40,7 @@ network_g_A:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256, 512]
-  norm_type: batch
+  norm_type: instance
   dim: 3
 
 network_g_B:
@@ -48,7 +48,7 @@ network_g_B:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256, 512]
-  norm_type: batch
+  norm_type: instance
   dim: 3
 
 network_d_proj:
@@ -67,10 +67,10 @@ network_d_iso:
 
 # path
 path:
-  pretrain_network_g_A: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_A_12000.pth
-  pretrain_network_g_B: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_B_12000.pth
-  pretrain_network_d_proj: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_d_A_12000.pth
-  pretrain_network_d_iso: /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_d_B_12000.pth
+  pretrain_network_g_A: ~
+  pretrain_network_g_B: ~
+  pretrain_network_d_proj: ~
+  pretrain_network_d_iso: ~
   param_key_g_A: params
   param_key_g_B: params
   strict_load_g: true
@@ -103,7 +103,7 @@ train:
   fix_flow: ~
 
   # losses
-  pixel_opt:
+  projection_opt:
     type: L1Loss
     loss_weight: 10.0
     reduction: mean
@@ -146,8 +146,8 @@ train:
 
 # logging settings
 logger:
-  print_freq: 100
-  save_checkpoint_freq: !!float 500
+  print_freq: 10
+  save_checkpoint_freq: !!float 1000
   use_tb_logger: true
   wandb:
     project: ~

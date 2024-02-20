@@ -31,8 +31,8 @@ def remove_outer_layer(matrix, overlap):
 def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
     # set up model
-    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], dim=3)
-    model_back = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], dim=3)
+    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], norm_type='instance', dim=3)
+    model_back = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], norm_type='instance', dim=3)
 
     model_path = args.model_path
     model_back_path = args.model_back_path
