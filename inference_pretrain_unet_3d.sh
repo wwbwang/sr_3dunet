@@ -1,5 +1,5 @@
 
-branch_name=one_step_mixsize_affine # _mean0.254 # no_pretrain # "both_loss_GAN" # "just_ssim"
+branch_name=one_step_mixsize_affine # stepnet
 iter='10000000000'  # nan Appoint in terminal
 
 # 从命令行获取参数
