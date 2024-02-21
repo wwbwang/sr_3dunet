@@ -1,5 +1,5 @@
 # general settings
-name: unet_3d
+name: unet_3d_old
 model_type: Unet_3D_old
 num_gpu: 4  # set num_gpu: 0 for cpu mode
 manual_seed: 0
@@ -40,7 +40,7 @@ network_g_A:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256, 512]
-  norm_type: instance
+  # norm_type: instance
   dim: 3
 
 network_g_B:
@@ -48,7 +48,7 @@ network_g_B:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256, 512]
-  norm_type: instance
+  # norm_type: instance
   dim: 3
 
 network_d_A:
@@ -162,7 +162,7 @@ train:
 # logging settings
 logger:
   print_freq: 10
-  save_checkpoint_freq: !!float 500
+  save_checkpoint_freq: !!float 200
   use_tb_logger: true
   wandb:
     project: ~

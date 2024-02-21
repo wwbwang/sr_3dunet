@@ -1,7 +1,7 @@
 # general settings
-name: pure-stepnet
+name: stepnet_patch32_d4g2
 model_type: StepNet_Model
-num_gpu: 4  # set num_gpu: 0 for cpu mode
+num_gpu: auto  # set num_gpu: 0 for cpu mode
 manual_seed: 0
 
 # # USM the ground-truth
@@ -23,13 +23,13 @@ datasets:
     use_flip: true
     use_rot: true
     gt_size: [32, 64] # fullsize is 128
-    gt_probs: [0, 1]
+    gt_probs: [1, 0]
     iso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
 
     # data loader
     use_shuffle6: true
     num_worker_per_gpu: 6
-    batch_size_per_gpu: 2 # 4 # 16
+    batch_size_per_gpu: 16
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
     pin_memory: True
@@ -40,7 +40,7 @@ network_g_A:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256, 512]
-  norm_type: instance
+  # norm_type: instance
   dim: 3
 
 network_g_B:
@@ -48,14 +48,7 @@ network_g_B:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256, 512]
-  norm_type: instance
-  dim: 3
-
-network_d_A:
-  type: CubeDiscriminator
-  in_channels: 1
-  features: [64, 128, 256]
-  norm_type: 'batch'
+  # norm_type: instance
   dim: 3
 
 network_d_proj:
@@ -72,12 +65,28 @@ network_d_iso:
   norm_type: 'batch'
   dim: 3
 
+network_d_A1:
+  type: CubeDiscriminator
+  in_channels: 1
+  features: [64, 128, 256]
+  norm_type: 'batch'
+  dim: 3
+
+network_d_A2:
+  type: CubeDiscriminator
+  in_channels: 1
+  features: [64, 128, 256]
+  norm_type: 'batch'
+  dim: 3
+
 # path
 path:
-  pretrain_network_g_A: ~ # /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_A_12000.pth
-  pretrain_network_g_B: ~ # /home/wangwb/workspace/sr_3dunet/experiments/one_step_mixsize!!save/models/net_g_B_12000.pth
-  pretrain_network_d_proj: ~
-  pretrain_network_d_iso: ~
+  pretrain_network_g_A: /home/wangwb/workspace/sr_3dunet/experiments/stepnet_archived_20240221_000600_archived_20240221_123247/models/net_g_A_40000.pth
+  pretrain_network_g_B: /home/wangwb/workspace/sr_3dunet/experiments/stepnet_archived_20240221_000600_archived_20240221_123247/models/net_g_B_40000.pth
+  pretrain_network_d_proj: /home/wangwb/workspace/sr_3dunet/experiments/stepnet_archived_20240221_000600_archived_20240221_123247/models/net_d_proj_40000.pth
+  pretrain_network_d_iso: /home/wangwb/workspace/sr_3dunet/experiments/stepnet_archived_20240221_000600_archived_20240221_123247/models/net_d_iso_40000.pth
+  pretrain_network_d_A1: /home/wangwb/workspace/sr_3dunet/experiments/stepnet_archived_20240221_000600_archived_20240221_123247/models/net_d_iso_40000.pth
+  pretrain_network_d_A2: /home/wangwb/workspace/sr_3dunet/experiments/stepnet_archived_20240221_000600_archived_20240221_123247/models/net_d_iso_40000.pth
   param_key_g_A: params
   param_key_g_B: params
   strict_load_g: true

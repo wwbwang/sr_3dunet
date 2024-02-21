@@ -119,10 +119,10 @@ class DoubleConv(nn.Module):
 
         self.conv = nn.Sequential(
             Conv(in_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            norm_layer(out_channels),
+            # norm_layer(out_channels),
             nn.ReLU(inplace=True),
             Conv(out_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            norm_layer(out_channels),
+            # norm_layer(out_channels),
             nn.ReLU(inplace=True)
         )
 
