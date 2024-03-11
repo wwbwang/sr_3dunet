@@ -65,6 +65,7 @@ def main():
     parser.add_argument('--step_size', type=int, default=16, help='step_size')
     parser.add_argument('--rotated_flag', type=str2bool, default=False, help='rotated_flag')
     args = parser.parse_args()
+    final_size = 64
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, model_back = get_inference_model(args, device)
@@ -76,8 +77,13 @@ def main():
     # prepare output dir
     os.makedirs(os.path.join(args.output, "input"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "output"), exist_ok=True)
-    os.makedirs(os.path.join(args.output, "back"), exist_ok=True)
-    percentiles=[0.01,0.9985] 
+    os.makedirs(os.path.join(args.output, "rec1"), exist_ok=True)
+    os.makedirs(os.path.join(args.output, "out_affine"), exist_ok=True)
+    os.makedirs(os.path.join(args.output, "C"), exist_ok=True)
+    os.makedirs(os.path.join(args.output, "C_affine"), exist_ok=True)
+    os.makedirs(os.path.join(args.output, "rec_out"), exist_ok=True)
+    os.makedirs(os.path.join(args.output, "rec2"), exist_ok=True)
+    percentiles=[0.01, 0.9985] # [0.01,0.9999] 
     dataset_mean=0
 
     img_path_list = os.listdir(args.input)
@@ -86,32 +92,61 @@ def main():
     
     for img_path in img_path_list:
         img = tifffile.imread(os.path.join(args.input, img_path)) # [:200,:200,:200]
+        img = np.clip(img, 0, 65535)
         origin_shape = img.shape
         img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
         tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path),
-                         remove_outer_layer(postprocess(img, min_value, max_value, dataset_mean=dataset_mean), args.overlap))
+                         remove_outer_layer(postprocess(img[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size], min_value, max_value, dataset_mean=dataset_mean), args.overlap))
                 
         if args.rotated_flag:
-            img = get_rotated_img(img)
+            img = get_rotated_img(img, device)
             
         img = img.astype(np.float32)[None, None,]
         img = torch.from_numpy(img).to(device)     # to float32
 
         out_img = model(img)
-        back_img = model_back(out_img)
+        rec1_img = model_back(out_img)
+        
+        out_affine_img = out_img.transpose(-1, -2)
+        C_img = model_back(out_affine_img)
+        C_affine_img = C_img.transpose(-1, -2)
+        rec_outimg = model(C_img).transpose(-1, -2)
+        rec2_img = model_back(rec_outimg)
         
         
         if args.rotated_flag:
             out_img = get_anti_rotated_img(out_img[0,0].cpu().numpy(), origin_shape)[None, None]
-            back_img = get_anti_rotated_img(back_img[0,0].cpu().numpy(), origin_shape)[None, None]
-        else:
-            out_img = out_img[0,0].cpu().numpy()
-            back_img = back_img[0,0].cpu().numpy()
+            rec1_img = get_anti_rotated_img(rec1_img[0,0].cpu().numpy(), origin_shape)[None, None]
+            out_affine_img = get_anti_rotated_img(out_affine_img[0,0].cpu().numpy(), origin_shape)[None, None]
+            C_img = get_anti_rotated_img(C_img[0,0].cpu().numpy(), origin_shape)[None, None]
+            C_affine_img = get_anti_rotated_img(C_affine_img[0,0].cpu().numpy(), origin_shape)[None, None]
+            rec_outimg = get_anti_rotated_img(rec_outimg[0,0].cpu().numpy(), origin_shape)[None, None]
+            rec2_img = get_anti_rotated_img(rec2_img[0,0].cpu().numpy(), origin_shape)[None, None]
+
+        out_img = out_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
+        rec1_img = rec1_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
+        out_affine_img = out_affine_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
+        C_img = C_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
+        C_affine_img = C_affine_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
+        rec_outimg = rec_outimg[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
+        rec2_img = rec2_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
         
         tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path),
                          remove_outer_layer(postprocess(out_img, min_value, max_value, dataset_mean), args.overlap))
-        tifffile.imwrite(os.path.join(args.output, "back", "back" + img_path),
-                         remove_outer_layer(postprocess(back_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "rec1", "rec1" + img_path),
+                         remove_outer_layer(postprocess(rec1_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "out_affine", "out_affine" + img_path),
+                         remove_outer_layer(postprocess(out_affine_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "C", "C" + img_path),
+                         remove_outer_layer(postprocess(C_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "C_affine", "C_affine" + img_path),
+                         remove_outer_layer(postprocess(C_affine_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "rec_out", "rec_out" + img_path),
+                         remove_outer_layer(postprocess(rec_outimg, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "rec1", "rec1" + img_path),
+                         remove_outer_layer(postprocess(rec1_img, min_value, max_value, dataset_mean), args.overlap))
+        tifffile.imwrite(os.path.join(args.output, "rec2", "rec2" + img_path),
+                         remove_outer_layer(postprocess(rec2_img, min_value, max_value, dataset_mean), args.overlap))
         
         # get_and_save_MIP(postprocess(out_img.cpu().numpy(), min_value, max_value, dataset_mean),
         #     os.path.join(args.output, "output_proj"), "output"+img_path)

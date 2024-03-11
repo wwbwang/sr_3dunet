@@ -223,7 +223,7 @@ def affine_img(img, iso_dimension):
 #     # rotated_raw_img = cv2.warpAffine(extend_raw_img, rotation_matrix, (desired_width, desired_height))
 #     return rotated_raw_img
 
-def get_rotated_img(raw_img, aniso_dimension=-2):
+def get_rotated_img(raw_img, device, aniso_dimension=-2):
     raw_img = raw_img.astype(np.float32)
     list_img = []
     for i in range(raw_img.shape[aniso_dimension]):
@@ -246,6 +246,38 @@ def get_rotated_img(raw_img, aniso_dimension=-2):
         list_img.append(rotated_img)
         
     return extend_block(np.stack(list_img, axis=1))
+
+
+# def get_rotated_img(raw_img, device, aniso_dimension=-2):
+#     raw_img = raw_img.astype(np.float32)
+#     raw_img_tensor = torch.from_numpy(raw_img).to(device)
+
+#     img = raw_img_tensor.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
+#     assert aniso_dimension == -2
+#     height, _, width = img.shape[-3:]
+
+#     max_size = max(height, width)
+
+#     desired_height = int(max_size * 1.414213) // 2 * 2
+#     desired_width = int(max_size * 1.414213) // 2 * 2
+
+#     border_height = (desired_height - height) // 2
+#     border_width = (desired_width - width) // 2
+
+#     angel = 45
+#     rotation_matrix = torch.tensor(
+#                         [[math.cos(angel), 0, math.sin(angel), 0],
+#                         [0, 1, 0, 0],
+#                         [-math.sin(angel), 0, math.cos(angel), 0]], device=device, dtype=img.dtype)[None, ]
+
+#     extend_img = F.pad(img, (border_width, border_width, border_height, border_height), mode='constant', value=0)
+#     rotated_grid = F.affine_grid(rotation_matrix, torch.Size([1, 1, desired_height, desired_width]))
+#     rotated_img = F.grid_sample(extend_img, rotated_grid.to(device))
+
+#     list_img.append(rotated_img.squeeze().cpu().numpy())
+        
+#     return extend_block(np.stack(list_img, axis=1))
+
 
 def get_anti_rotated_img(raw_img, origin_shape=(128, 128, 128), aniso_dimension=-2):
     raw_img = raw_img.astype(np.float32)
