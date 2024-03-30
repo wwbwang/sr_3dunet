@@ -27,10 +27,10 @@ def affine_img(img, iso_dimension=-1, aniso_dimension=-2):
     return img
 
 @MODEL_REGISTRY.register()
-class MPCN_Model(BaseModel):
+class MPCN_del_cycle_model(BaseModel):
 
     def __init__(self, opt):
-        super(MPCN_Model, self).__init__(opt)
+        super(MPCN_del_cycle_model, self).__init__(opt)
 
         # define network
         self.net_g_A = build_network(opt['network_g_A'])
@@ -87,9 +87,6 @@ class MPCN_Model(BaseModel):
         self.net_d_anisoproj = define_load_network(self.opt['network_d_anisoproj'], 'pretrain_network_d_anisoproj')
         self.net_d_isoproj = define_load_network(self.opt['network_d_isoproj'], 'pretrain_network_d_isoproj')
         self.net_d_A2C = define_load_network(self.opt['network_d_A2C'], 'pretrain_network_d_A2C')
-        self.net_d_recA1 = define_load_network(self.opt['network_d_recA1'], 'pretrain_network_d_recA1')
-        self.net_d_recA2 = define_load_network(self.opt['network_d_recA2'], 'pretrain_network_d_recA2')
-
         # define losses
         if train_opt.get('projection_opt'):
             self.cri_projection = build_loss(train_opt['projection_opt']).to(self.device)
@@ -132,7 +129,7 @@ class MPCN_Model(BaseModel):
         self.optimizers.append(self.optimizer_g)
         # optimizer d
         optim_type = train_opt['optim_d'].pop('type')
-        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_anisoproj.parameters(),self.net_d_isoproj.parameters(),self.net_d_A2C.parameters(),self.net_d_recA1.parameters(),self.net_d_recA2.parameters()), **train_opt['optim_d'])
+        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_anisoproj.parameters(),self.net_d_isoproj.parameters(),self.net_d_A2C.parameters()), **train_opt['optim_d'])
         self.optimizers.append(self.optimizer_d)
 
     def feed_data(self, data):
@@ -146,10 +143,6 @@ class MPCN_Model(BaseModel):
         for p in self.net_d_anisoproj.parameters():
             p.requires_grad = False
         for p in self.net_d_isoproj.parameters():
-            p.requires_grad = False
-        for p in self.net_d_recA1.parameters():
-            p.requires_grad = False
-        for p in self.net_d_recA2.parameters():
             p.requires_grad = False
         for p in self.net_d_A2C.parameters():
             p.requires_grad = False
@@ -176,13 +169,6 @@ class MPCN_Model(BaseModel):
         l_total = 0
         loss_dict = OrderedDict()
         if (current_iter % self.net_d_iters == 0 and current_iter > self.net_d_init_iters):     
-            # cycle loss
-            if self.cri_cycle:
-                l_cycle1 = self.cri_cycle(self.realA, self.recA1) + self.cri_cycle_ssim(self.realA, self.recA1)
-                l_cycle2 = self.cri_cycle(self.realA, self.recA2) + self.cri_cycle_ssim(self.realA, self.recA2)
-                l_total += l_cycle1 + l_cycle2
-                loss_dict['l_cycle1'] = l_cycle1
-                loss_dict['l_cycle2'] = l_cycle2
             # projection loss
             # if self.cri_projection:
             #     l_iso_proj = self.cri_projection(output_iso_proj, input_iso_proj) + self.cri_projection_ssim(output_iso_proj, input_iso_proj)
@@ -200,15 +186,6 @@ class MPCN_Model(BaseModel):
             l_total += l_g_B_iso
             loss_dict['l_g_B_iso'] = l_g_B_iso
             
-            recA1_g_pred = self.net_d_recA1(self.recA1)
-            l_g_recA1 = self.cri_gan(recA1_g_pred, True, is_disc=False)
-            l_total += l_g_recA1
-            loss_dict['l_g_recA1'] = l_g_recA1
-            
-            recA2_g_pred = self.net_d_recA2(self.recA2)
-            l_g_recA2 = self.cri_gan(recA2_g_pred, True, is_disc=False)
-            l_total += l_g_recA2
-            loss_dict['l_g_recA2'] = l_g_recA2
             
             fakeC_g_pred = self.net_d_A2C(self.fakeC)
             l_g_A2C = self.cri_gan(fakeC_g_pred, True, is_disc=False)
@@ -225,10 +202,6 @@ class MPCN_Model(BaseModel):
             for p in self.net_d_anisoproj.parameters():
                 p.requires_grad = True
             for p in self.net_d_isoproj.parameters():
-                p.requires_grad = True
-            for p in self.net_d_recA1.parameters():
-                p.requires_grad = True
-            for p in self.net_d_recA2.parameters():
                 p.requires_grad = True
             for p in self.net_d_A2C.parameters():
                 p.requires_grad = True
@@ -252,16 +225,6 @@ class MPCN_Model(BaseModel):
             loss_dict['l_d_real_A2C'] = l_d_real_A2C
             l_d_real_A2C.backward()
             
-            recA1_d_pred = self.net_d_recA1(self.realA)
-            l_d_real_recA1 = self.cri_gan(recA1_d_pred, True, is_disc=True)
-            loss_dict['l_d_real_recA1'] = l_d_real_recA1
-            l_d_real_recA1.backward()
-            
-            recA2_d_pred = self.net_d_recA2(self.realA)
-            l_d_real_recA2 = self.cri_gan(recA2_d_pred, True, is_disc=True)
-            loss_dict['l_d_real_recA2'] = l_d_real_recA2
-            l_d_real_recA2.backward()
-            
             # fake
             fakeB_d_anisoproj_pred = self.net_d_anisoproj(output_aniso_proj.detach())
             l_d_fake_B_aniso = self.cri_gan(fakeB_d_anisoproj_pred, False, is_disc=False)
@@ -278,18 +241,8 @@ class MPCN_Model(BaseModel):
             loss_dict['l_d_fake_A2C'] = l_d_fake_A2C
             l_d_fake_A2C.backward()
             
-            recA1_d_pred = self.net_d_recA1(self.recA1.detach())
-            l_d_fake_recA1 = self.cri_gan(recA1_d_pred, False, is_disc=False)
-            loss_dict['l_d_fake_recA1'] = l_d_fake_recA1
-            l_d_fake_recA1.backward()
-            
-            recA2_d_pred = self.net_d_recA2(self.recA2.detach())
-            l_d_fake_recA2 = self.cri_gan(recA2_d_pred, False, is_disc=False)
-            loss_dict['l_d_fake_recA2'] = l_d_fake_recA2
-            l_d_fake_recA2.backward()
-            
-            l_d_total += l_d_real_B_aniso + l_d_real_B_iso + l_d_real_A2C + l_d_real_recA1 + l_d_real_recA2
-            l_d_total += l_d_fake_B_aniso + l_d_fake_B_iso + l_d_fake_A2C + l_d_fake_recA1 + l_d_fake_recA2
+            l_d_total += l_d_real_B_aniso + l_d_real_B_iso + l_d_real_A2C
+            l_d_total += l_d_fake_B_aniso + l_d_fake_B_iso + l_d_fake_A2C
             loss_dict['l_d_total'] = l_d_total
             
             self.optimizer_d.step()
@@ -305,6 +258,4 @@ class MPCN_Model(BaseModel):
         self.save_network(self.net_d_anisoproj, 'net_d_anisoproj', current_iter)
         self.save_network(self.net_d_isoproj, 'net_d_isoproj', current_iter)
         self.save_network(self.net_d_A2C, 'net_d_A2C', current_iter)
-        self.save_network(self.net_d_recA1, 'net_d_recA1', current_iter)
-        self.save_network(self.net_d_recA2, 'net_d_recA2', current_iter)
         self.save_training_state(epoch, current_iter)

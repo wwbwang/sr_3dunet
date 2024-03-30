@@ -23,7 +23,7 @@ from basicsr.utils.img_util import img2tensor, tensor2img
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def remove_outer_layer(matrix, overlap):
-    return matrix
+    # return matrix
     height, width, depth = matrix.shape
     removed_matrix = matrix[overlap:height-overlap, overlap:width-overlap, overlap:depth-overlap]
     return removed_matrix
@@ -65,11 +65,14 @@ def main():
     parser.add_argument('--step_size', type=int, default=16, help='step_size')
     parser.add_argument('--rotated_flag', type=str2bool, default=False, help='rotated_flag')
     args = parser.parse_args()
-    final_size = 64
+    final_size = 128 # 64
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model, model_back = get_inference_model(args, device)
     print("Model size: {:.5f}M".format(sum(p.numel() for p in model.parameters())*4/1048576))
+    print("Model parameters: {}".format(sum(p.numel() for p in model.parameters())))
+
+    print("Model_back size: {:.5f}M".format(sum(p.numel() for p in model_back.parameters())*4/1048576))
     if args.piece_flag:
         model = partial(handle_bigtif, model, args.piece_size, args.overlap, args.step_size)
         model_back = partial(handle_bigtif, model_back, args.piece_size, args.overlap, args.step_size)
@@ -83,7 +86,7 @@ def main():
     os.makedirs(os.path.join(args.output, "C_affine"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec_out"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec2"), exist_ok=True)
-    percentiles=[0.01, 0.9985] # [0.01,0.9999] 
+    percentiles=[0.01,0.9999] # [0.01, 0.9985]
     dataset_mean=0
 
     img_path_list = os.listdir(args.input)
@@ -96,7 +99,7 @@ def main():
         origin_shape = img.shape
         img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
         tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path),
-                         remove_outer_layer(postprocess(img[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size], min_value, max_value, dataset_mean=dataset_mean), args.overlap))
+                         remove_outer_layer(postprocess(img[0:final_size, 0:final_size, 0:final_size], min_value, max_value, dataset_mean=dataset_mean), args.overlap))
                 
         if args.rotated_flag:
             img = get_rotated_img(img, device)
@@ -104,8 +107,19 @@ def main():
         img = img.astype(np.float32)[None, None,]
         img = torch.from_numpy(img).to(device)     # to float32
 
+        start_time = time.time()
+        torch.cuda.synchronize()
         out_img = model(img)
+        torch.cuda.synchronize()
+        end_time = time.time()
+        print("avg-time_model:", (end_time-start_time)*1000, "N, C, H, W, D:", origin_shape)
+        
+        start_time = time.time()
+        torch.cuda.synchronize()
         rec1_img = model_back(out_img)
+        torch.cuda.synchronize()
+        end_time = time.time()
+        print("avg-time_model_back:", (end_time-start_time)*1000, "N, C, H, W, D:", origin_shape)
         
         out_affine_img = out_img.transpose(-1, -2)
         C_img = model_back(out_affine_img)
@@ -115,21 +129,22 @@ def main():
         
         
         if args.rotated_flag:
-            out_img = get_anti_rotated_img(out_img[0,0].cpu().numpy(), origin_shape)[None, None]
-            rec1_img = get_anti_rotated_img(rec1_img[0,0].cpu().numpy(), origin_shape)[None, None]
-            out_affine_img = get_anti_rotated_img(out_affine_img[0,0].cpu().numpy(), origin_shape)[None, None]
-            C_img = get_anti_rotated_img(C_img[0,0].cpu().numpy(), origin_shape)[None, None]
-            C_affine_img = get_anti_rotated_img(C_affine_img[0,0].cpu().numpy(), origin_shape)[None, None]
-            rec_outimg = get_anti_rotated_img(rec_outimg[0,0].cpu().numpy(), origin_shape)[None, None]
-            rec2_img = get_anti_rotated_img(rec2_img[0,0].cpu().numpy(), origin_shape)[None, None]
+            out_img = get_anti_rotated_img(out_img[0,0].cpu().numpy(), origin_shape) # [None, None]
+            rec1_img = get_anti_rotated_img(rec1_img[0,0].cpu().numpy(), origin_shape) # [None, None]
+            out_affine_img = get_anti_rotated_img(out_affine_img[0,0].cpu().numpy(), origin_shape) # [None, None]
+            C_img = get_anti_rotated_img(C_img[0,0].cpu().numpy(), origin_shape) # [None, None]
+            C_affine_img = get_anti_rotated_img(C_affine_img[0,0].cpu().numpy(), origin_shape) # [None, None]
+            rec_outimg = get_anti_rotated_img(rec_outimg[0,0].cpu().numpy(), origin_shape) # [None, None]
+            rec2_img = get_anti_rotated_img(rec2_img[0,0].cpu().numpy(), origin_shape) # [None, None]
 
-        out_img = out_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
-        rec1_img = rec1_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
-        out_affine_img = out_affine_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
-        C_img = C_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
-        C_affine_img = C_affine_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
-        rec_outimg = rec_outimg[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
-        rec2_img = rec2_img[0,0].cpu().numpy()[8:-8, 8:-8, 8:-8][0:final_size, 0:final_size, 0:final_size]
+        else:
+            out_img = out_img[0,0].cpu().numpy()[0:final_size, 0:final_size, 0:final_size]
+            rec1_img = rec1_img[0,0].cpu().numpy()[0:final_size, 0:final_size, 0:final_size]
+            out_affine_img = out_affine_img[0,0].cpu().numpy()[0:final_size, 0:final_size, 0:final_size]
+            C_img = C_img[0,0].cpu().numpy()[0:final_size, 0:final_size, 0:final_size]
+            C_affine_img = C_affine_img[0,0].cpu().numpy()[0:final_size, 0:final_size, 0:final_size]
+            rec_outimg = rec_outimg[0,0].cpu().numpy()[0:final_size, 0:final_size, 0:final_size]
+            rec2_img = rec2_img[0,0].cpu().numpy()[0:final_size, 0:final_size, 0:final_size]
         
         tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path),
                          remove_outer_layer(postprocess(out_img, min_value, max_value, dataset_mean), args.overlap))

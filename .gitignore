@@ -140,10 +140,11 @@ dmypy.json
 .pyre/
 
 .idea/
-*.sh
-launsh.json
-.vscode
 
 tb_logger_backup
-
+tb_logger_bk
 BK
+
+*.tif
+*.gif
+*.mp4

@@ -151,17 +151,14 @@ def preprocess(img, percentiles, dataset_mean):  # 再加一个数量级就获�
     min_value = np.min(clipped_arr)
     max_value = np.max(clipped_arr) 
     img = (clipped_arr-min_value)/(max_value-min_value)
-    img = np.sqrt(img)
+    # img = np.sqrt(img)
     img = img - dataset_mean
     return img, min_value, max_value
 
 def postprocess(img, min_value, max_value, dataset_mean=0.153):
-    # return img
-    # img = np.clip(img + 0.093, 0, 1)
     img = img + dataset_mean
-    img = np.square(img)
+    # img = np.square(img)
     img = img * (max_value - min_value) + min_value
-    # img = img * 256 # 65535
     return img
 
 def get_projection(img, iso_dimension):

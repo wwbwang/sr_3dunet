@@ -11,14 +11,15 @@
             "program": "${workspaceFolder}/sr_3dunet/train.py",
             "console": "integratedTerminal",            
             "env": {
-                "CUDA_VISIBLE_DEVICES": "2"
+                "CUDA_VISIBLE_DEVICES": "3"
             },
             "args": [
                 "-opt",
                 // "options/train_projection_cyclegan.yml",
                 // "options/pretrain_unet_3d.yml",
                 // "options/train_unet_3d.yml",
-                "options/train_projection_cyclegan_rotatedVISoR.yml",
+                // "options/train_projection_cyclegan_rotatedVISoR.yml",
+                "options/stepnet.yml",
             ],
             "justMyCode": false
         }
