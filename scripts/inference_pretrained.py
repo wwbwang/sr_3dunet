@@ -16,8 +16,8 @@ from functools import partial
 
 from sr_3dunet.utils.inference_base import get_base_argument_parser
 from sr_3dunet.utils.data_utils import preprocess, postprocess, extend_block, get_rotated_img, get_anti_rotated_img, str2bool
-from scripts.get_MIP import get_and_save_MIP
-from scripts.inference_big_tif import handle_bigtif
+from sr_3dunet.utils.get_MIP import get_and_save_MIP
+from sr_3dunet.utils.inference_big_tif import handle_bigtif
 from basicsr.data.transforms import mod_crop
 from basicsr.utils.img_util import img2tensor, tensor2img
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator

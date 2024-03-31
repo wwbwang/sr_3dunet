@@ -148,3 +148,5 @@ BK
 *.tif
 *.gif
 *.mp4
+
+version.py

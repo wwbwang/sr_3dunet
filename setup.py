@@ -95,8 +95,7 @@ if __name__ == '__main__':
         long_description_content_type='text/markdown',
         author='Weibo Wang',
         author_email='wwbwang99@gmail.com',
-        # keywords='computer vision, pytorch, image restoration, super-resolution',
-        # url='https://github.com/TencentARC/AnimeSR',
+        keywords='computer vision, pytorch, isotropic restoration, super-resolution, self-supervised learning, three-dimensional fluorescence microscopy imaging',
         include_package_data=True,
         packages=find_packages(exclude=('options', 'datasets', 'experiments', 'results', 'tb_logger', 'wandb')),
         classifiers=[
