@@ -104,6 +104,38 @@ def augment_3d(imgs, iso_dimension, hflip=True, vflip=True, dflip=True, rotation
     else:
         return imgs
     
+def augment_3d_rotated(imgs, aniso_dimension, hflip=True, vflip=True, dflip=True, rotation=True, return_status=False):
+    hflip = hflip and random.random() < 0.5
+    vflip = vflip and random.random() < 0.5
+    dflip = dflip and random.random() < 0.5
+    rot90 = rotation and random.random() < 0.5
+
+    def _augment(img):
+        if hflip:  # horizontal
+            img = np.flip(img, axis=-1)
+        if vflip:  # vertical
+            img = np.flip(img, axis=-2)
+        if dflip:  # 
+            img = np.flip(img, axis=-3)
+        if rot90:
+            img = img.transpose(1, 0, 2) if aniso_dimension==-1 else img
+            img = img.transpose(2, 1, 0) if aniso_dimension==-2 else img
+            img = img.transpose(0, 2, 1) if aniso_dimension==-3 else img
+            
+        return img
+
+    if not isinstance(imgs, list):
+        imgs = [imgs]
+        
+    imgs = [_augment(img) for img in imgs]
+    if len(imgs) == 1:
+        imgs = imgs[0]
+
+    if return_status:
+        return imgs, (hflip, vflip, rot90)
+    else:
+        return imgs
+    
 def augment_2d(imgs, hflip=True, vflip=True, rotation=True, return_status=False):
     hflip = hflip and random.random() < 0.5
     vflip = vflip and random.random() < 0.5
@@ -131,17 +163,6 @@ def augment_2d(imgs, hflip=True, vflip=True, rotation=True, return_status=False)
     else:
         return imgs
     
-# def preprocess(img):
-#     # input img [0,65535]
-#     # output img [0,1]
-#     min_value = 0
-#     max_value = 65535
-    
-#     img = np.clip(img, min_value, max_value)
-#     img = (img-min_value)/(max_value-min_value)
-#     img = np.sqrt(img) - 0.093
-#     return img, min_value, max_value
-
 def preprocess(img, percentiles, dataset_mean):  # 再加一个数量级就获得和原图差不多的视觉效果
     flattened_arr = np.sort(img.flatten())
     clip_low = int(percentiles[0] * len(flattened_arr))
@@ -174,51 +195,49 @@ def get_projection(img, iso_dimension):
         img_aniso1 = torch.max(img, dim=list_dimensions[1]).values
     return img_iso, img_aniso0, img_aniso1
 
-def affine_img(img, iso_dimension):
-    # img = augment_3d(img, iso_dimension)
-    
-    # list_dimensions = [-1, -2, -3]
-    # list_dimensions.remove(iso_dimension)
-    # aniso_dimension = random.choice(list_dimensions)
-    
-    # img = img.transpose(iso_dimension, aniso_dimension)
-    # FIXME
-    return img
+def affine_img(img, iso_dimension=-1, aniso_dimension=None):
 
-# def get_rotated_img(raw_img):
-#     # raw_img = raw_img[None,]
-#     height, width, depth = raw_img.shape
-#     max_size = max(height, width, depth)
+    if aniso_dimension is None:
+        list_dimensions = [-1, -2, -3]
+        list_dimensions.remove(iso_dimension)
+        aniso_dimension = random.choice(list_dimensions)
 
-#     desired_height = int(max_size * math.sqrt(2)) // 2 * 2
-#     desired_width = int(max_size * math.sqrt(2)) // 2 * 2
-#     desired_depth = int(max_size * math.sqrt(2)) // 2 * 2
+    img = img.transpose(iso_dimension, aniso_dimension)
+    return img, aniso_dimension
 
-#     border_height = (desired_height - height) // 2
-#     border_width = (desired_width - width) // 2
-#     border_depth = (desired_depth - depth) // 2
+def affine_img_VISoR(img, aniso_dimension=-2, half_iso_dimension=None):
 
-#     # center_x = desired_height // 2
-#     # center_y = desired_width // 2
-#     # center_z = desired_depth // 2
+    if half_iso_dimension is None:
+        list_dimensions = [-1, -2, -3]
+        list_dimensions.remove(aniso_dimension)
+        half_iso_dimension = random.choice(list_dimensions)
     
-#     extend_raw_img = np.zeros # np.pad(raw_img, ((border_height, border_height), (0, 0), (border_depth, border_depth)), mode='constant')[0]
-    
-#     angle = 45
-#     theta = torch.tensor(
-#                 [[[math.cos(angle), 0, math.sin(angle), 0],
-#                 [0, 1, 0, 0],
-#                 [-math.sin(angle), 0, math.cos(angle), 0]] for _ in range(raw_img.shape[0])],
-#                 dtype=torch.float).to(raw_img.device)
-#     grid = torch.nn.functional.affine_grid(theta, extend_raw_img.size(), align_corners=True)
-#     rotated_raw_img = torch.nn.functional.grid_sample(img_pad, grid=grid, align_corners=True)
-    
-    
-    
-#     # rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+    img = img.transpose(half_iso_dimension, aniso_dimension)
+    return img, half_iso_dimension
 
-#     # rotated_raw_img = cv2.warpAffine(extend_raw_img, rotation_matrix, (desired_width, desired_height))
-#     return rotated_raw_img
+def extend_block_utils(img, step_size=16, dim=3):
+    def extend_block_(img):
+        if dim==3:
+            h, w, d = img.shape
+            pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
+            pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
+            pad_depth = (step_size - d % step_size) if d % step_size != 0 else 0
+            
+            padded_img = np.pad(img, ((0, pad_height), (0, pad_width), (0, pad_depth)), mode='constant') if isinstance(img, np.ndarray)\
+                else F.pad(img, (0, pad_depth, 0, pad_width, 0, pad_height), mode='constant') 
+        elif dim==2:
+            h, w = img.shape
+            pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
+            pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
+            
+            padded_img = np.pad(img, ((0, pad_height), (0, pad_width)), mode='constant') if isinstance(img, np.ndarray)\
+                else F.pad(img, (0, pad_width, 0, pad_height), mode='constant')
+        return padded_img
+                
+    if img.ndim > 3:
+        return extend_block_(img[0,0])[None, None]
+    else:
+        return extend_block_(img)
 
 def get_rotated_img(raw_img, device, aniso_dimension=-2):
     raw_img = raw_img.astype(np.float32)
@@ -242,39 +261,7 @@ def get_rotated_img(raw_img, device, aniso_dimension=-2):
         rotated_img = cv2.warpAffine(extend_img, rotation_matrix, (desired_width, desired_height))
         list_img.append(rotated_img)
         
-    return extend_block(np.stack(list_img, axis=1))
-
-
-# def get_rotated_img(raw_img, device, aniso_dimension=-2):
-#     raw_img = raw_img.astype(np.float32)
-#     raw_img_tensor = torch.from_numpy(raw_img).to(device)
-
-#     img = raw_img_tensor.unsqueeze(0).unsqueeze(0)  # Add batch and channel dimensions
-#     assert aniso_dimension == -2
-#     height, _, width = img.shape[-3:]
-
-#     max_size = max(height, width)
-
-#     desired_height = int(max_size * 1.414213) // 2 * 2
-#     desired_width = int(max_size * 1.414213) // 2 * 2
-
-#     border_height = (desired_height - height) // 2
-#     border_width = (desired_width - width) // 2
-
-#     angel = 45
-#     rotation_matrix = torch.tensor(
-#                         [[math.cos(angel), 0, math.sin(angel), 0],
-#                         [0, 1, 0, 0],
-#                         [-math.sin(angel), 0, math.cos(angel), 0]], device=device, dtype=img.dtype)[None, ]
-
-#     extend_img = F.pad(img, (border_width, border_width, border_height, border_height), mode='constant', value=0)
-#     rotated_grid = F.affine_grid(rotation_matrix, torch.Size([1, 1, desired_height, desired_width]))
-#     rotated_img = F.grid_sample(extend_img, rotated_grid.to(device))
-
-#     list_img.append(rotated_img.squeeze().cpu().numpy())
-        
-#     return extend_block(np.stack(list_img, axis=1))
-
+    return extend_block_utils(np.stack(list_img, axis=1))
 
 def get_anti_rotated_img(raw_img, origin_shape=(128, 128, 128), aniso_dimension=-2):
     raw_img = raw_img.astype(np.float32)
@@ -301,7 +288,6 @@ def get_anti_rotated_img(raw_img, origin_shape=(128, 128, 128), aniso_dimension=
     out_img = np.stack(list_img, axis=1)
     return out_img
 
-
 def get_rotated_projection(img, aniso_dimension=-2):   # 默认左上到右下倾斜
     if aniso_dimension == -2:
         list_iso = []
@@ -316,30 +302,6 @@ def get_rotated_projection(img, aniso_dimension=-2):   # 默认左上到右下�
         return iso_proj, aniso_proj
     else:
         return "error"
-
-def extend_block(img, step_size=16, dim=3):
-    def extend_block_(img):
-        if dim==3:
-            h, w, d = img.shape
-            pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
-            pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
-            pad_depth = (step_size - d % step_size) if d % step_size != 0 else 0
-            
-            padded_img = np.pad(img, ((0, pad_height), (0, pad_width), (0, pad_depth)), mode='constant') if isinstance(img, np.ndarray)\
-                else F.pad(img, (0, pad_depth, 0, pad_width, 0, pad_height), mode='constant') 
-        elif dim==2:
-            h, w = img.shape
-            pad_height = (step_size - h % step_size) if h % step_size != 0 else 0
-            pad_width = (step_size - w % step_size) if w % step_size != 0 else 0
-            
-            padded_img = np.pad(img, ((0, pad_height), (0, pad_width)), mode='constant') if isinstance(img, np.ndarray)\
-                else F.pad(img, (0, pad_width, 0, pad_height), mode='constant')
-        return padded_img
-                
-    if img.ndim > 3:
-        return extend_block_(img[0,0])[None, None]
-    else:
-        return extend_block_(img)
 
 def crop_block(img, step_size=16, dim=3):
     if dim==3:

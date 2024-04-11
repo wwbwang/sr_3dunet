@@ -4,13 +4,13 @@
 
     ```bash
     git clone https://github.com/wwbwang/sr_3dunet
-    git checkout stable_version_
     cd sr_3dunet
     ```
 2. Install
 
     ```bash
     # Install dependent packages
+    python==3.9.0
     pip install -r requirements.txt
 
     # Install sr_3dunet

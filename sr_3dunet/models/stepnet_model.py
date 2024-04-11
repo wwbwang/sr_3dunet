@@ -15,16 +15,7 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
-from ..utils.data_utils import get_projection
-
-def affine_img(img, iso_dimension=-1, aniso_dimension=-2):
-
-    # list_dimensions = [-1, -2, -3]
-    # list_dimensions.remove(iso_dimension)
-    # aniso_dimension = random.choice(list_dimensions)
-
-    img = img.transpose(iso_dimension, aniso_dimension)
-    return img
+from ..utils.data_utils import get_projection, affine_img
 
 @MODEL_REGISTRY.register()
 class MPCN_Model(BaseModel):
@@ -157,11 +148,11 @@ class MPCN_Model(BaseModel):
         self.optimizer_g.zero_grad()
         self.realA = self.lq
         self.fakeB = self.net_g_A(self.realA)
-        self.affine_fakeB = affine_img(self.fakeB)
+        self.affine_fakeB, aniso_dimension = affine_img(self.fakeB, iso_dimension, None)
         
         self.recA1 = self.net_g_B(self.fakeB)
         self.fakeC = self.net_g_B(self.affine_fakeB)
-        self.recA2 = self.net_g_B(affine_img(self.net_g_A(self.fakeC)))
+        self.recA2 = self.net_g_B(affine_img(self.net_g_A(self.fakeC), iso_dimension, aniso_dimension)[0])
         
         # get iso and aniso projection arrays
         input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, iso_dimension)
@@ -195,8 +186,8 @@ class MPCN_Model(BaseModel):
             l_total += l_g_B_aniso
             loss_dict['l_g_B_aniso'] = l_g_B_aniso
             
-            fakeB_g_anisoproj_pred = self.net_d_isoproj(output_iso_proj)
-            l_g_B_iso = self.cri_gan(fakeB_g_anisoproj_pred, True, is_disc=False)
+            fakeB_g_isoproj_pred = self.net_d_isoproj(output_iso_proj)
+            l_g_B_iso = self.cri_gan(fakeB_g_isoproj_pred, True, is_disc=False)
             l_total += l_g_B_iso
             loss_dict['l_g_B_iso'] = l_g_B_iso
             

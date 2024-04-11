@@ -28,7 +28,7 @@ datasets:
     iso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
 
     # data loader
-    use_shuffle6: true
+    use_shuffle: true
     num_worker_per_gpu: 6
     batch_size_per_gpu: 2 # 16
     dataset_enlarge_ratio: 1

@@ -150,3 +150,5 @@ BK
 *.mp4
 
 version.py
+
+*.out

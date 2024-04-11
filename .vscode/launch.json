@@ -19,9 +19,20 @@
                 // "options/pretrain_unet_3d.yml",
                 // "options/train_unet_3d.yml",
                 // "options/train_projection_cyclegan_rotatedVISoR.yml",
-                "options/stepnet.yml",
+                "options/MPCN_VISoR.yml",
             ],
             "justMyCode": false
         }
+        // {
+        //     "name": "get_2D3Ddatasets_from_rotated_datasets",
+        //     "type": "python",
+        //     "request": "launch",
+        //     "program": "${workspaceFolder}/scripts/get_2D3Ddatasets_from_rotated_datasets.py",
+        //     "console": "integratedTerminal",            
+        //     "env": {
+        //         "CUDA_VISIBLE_DEVICES": "3"
+        //     },
+        //     "justMyCode": false
+        // }
     ]
 }

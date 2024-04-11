@@ -15,16 +15,7 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
-from ..utils.data_utils import get_projection
-
-def affine_img(img, iso_dimension=-1, aniso_dimension=-2):
-
-    # list_dimensions = [-1, -2, -3]
-    # list_dimensions.remove(iso_dimension)
-    # aniso_dimension = random.choice(list_dimensions)
-
-    img = img.transpose(iso_dimension, aniso_dimension)
-    return img
+from ..utils.data_utils import get_projection, affine_img
 
 @MODEL_REGISTRY.register()
 class MPCN_del_MIP_model(BaseModel):
