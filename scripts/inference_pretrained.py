@@ -31,8 +31,8 @@ def remove_outer_layer(matrix, remove_size):
 def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
     # set up model
-    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256], dim=3)
-    model_back = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256], dim=3)
+    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256], norm_type=None, dim=3)
+    model_back = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256], norm_type=None, dim=3)
 
     model_path = args.model_path
     model_back_path = args.model_back_path
@@ -86,7 +86,7 @@ def main():
     os.makedirs(os.path.join(args.output, "C_affine"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec_out"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec2"), exist_ok=True)
-    percentiles=[0.01,0.9998] # [0.01, 0.9985]
+    percentiles=[0,1] # [0.01,0.999999] # [0.01, 0.9985]
     dataset_mean=0
 
     img_path_list = os.listdir(args.input)

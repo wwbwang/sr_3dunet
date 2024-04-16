@@ -2,62 +2,9 @@ import torch
 import torch.nn as nn
 import functools
 import torch.nn.functional as F
+from sr_3dunet.archs.arch_utils import DoubleConv, get_norm_layer
 
 from basicsr.utils.registry import ARCH_REGISTRY
-
-# ==========
-# normaliz layer
-# ==========
-# def get_norm_layer(norm_type='instance', dim=2):
-#     if dim == 2:
-#         BatchNorm = nn.BatchNorm2d
-#         InstanceNorm = nn.InstanceNorm2d
-#     elif dim == 3:
-#         BatchNorm = nn.BatchNorm3d
-#         InstanceNorm = nn.InstanceNorm3d
-#     else:
-#         raise Exception('Invalid dim.')
-
-#     if norm_type == 'batch':
-#         norm_layer = functools.partial(BatchNorm, affine=True, track_running_stats=True)
-#     elif norm_type == 'instance':
-#         norm_layer = functools.partial(InstanceNorm, affine=False, track_running_stats=False)
-#     elif norm_type == 'identity':
-#         def norm_layer(x):
-#             return lambda t:t
-#     else:
-#         raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
-#     return norm_layer
-
-# ==========
-# UNet
-# ==========
-class DoubleConv(nn.Module):
-    def __init__(self, in_channels, out_channels, *, norm_type='batch', dim=3):
-        super(DoubleConv, self).__init__()
-
-        if dim == 2:
-            Conv = nn.Conv2d
-        elif dim == 3:
-            Conv = nn.Conv3d
-        else:
-            raise Exception('Invalid dim.')
-
-        # norm_layer=get_norm_layer(norm_type, dim=dim)
-        use_bias = True if norm_type=='instance' else False
-
-        self.conv = nn.Sequential(
-            Conv(in_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            # norm_layer(out_channels),
-            nn.ReLU(inplace=True),
-            Conv(out_channels, out_channels, kernel_size=3, padding=1, bias=use_bias),
-            # norm_layer(out_channels),
-            nn.ReLU(inplace=True)
-        )
-
-    def forward(self, x):
-        x = self.conv(x)
-        return x
 
 @ARCH_REGISTRY.register()
 class UNet_3d_Generator(nn.Module):

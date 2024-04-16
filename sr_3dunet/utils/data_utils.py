@@ -167,7 +167,7 @@ def preprocess(img, percentiles, dataset_mean):  # 再加一个数量级就获�
     flattened_arr = np.sort(img.flatten())
     clip_low = int(percentiles[0] * len(flattened_arr))
     clip_high = int(percentiles[1] * len(flattened_arr))
-    clipped_arr = np.clip(img, flattened_arr[clip_low], flattened_arr[clip_high])
+    clipped_arr = np.clip(img, flattened_arr[clip_low], flattened_arr[clip_high-1])
 
     min_value = np.min(clipped_arr)
     max_value = np.max(clipped_arr) 
@@ -196,7 +196,7 @@ def get_projection(img, iso_dimension):
     return img_iso, img_aniso0, img_aniso1
 
 def affine_img(img, iso_dimension=-1, aniso_dimension=None):
-
+    return
     if aniso_dimension is None:
         list_dimensions = [-1, -2, -3]
         list_dimensions.remove(iso_dimension)
@@ -213,7 +213,8 @@ def affine_img_VISoR(img, aniso_dimension=-2, half_iso_dimension=None):
         half_iso_dimension = random.choice(list_dimensions)
     
     img = img.transpose(half_iso_dimension, aniso_dimension)
-    return img, half_iso_dimension
+    half_iso_dimension, aniso_dimension = aniso_dimension, half_iso_dimension
+    return img, half_iso_dimension, aniso_dimension
 
 def extend_block_utils(img, step_size=16, dim=3):
     def extend_block_(img):
@@ -352,3 +353,7 @@ def crop_block(img, step_size=16, dim=3):
 #     # out_img = out_img.transpose(1, 0, 2)
     
 #     return rotated_raw_img # , iso_dimension
+
+def merge_img(img_list):
+    matrix_array = np.array(img_list)
+    return np.max(matrix_array, axis=0)

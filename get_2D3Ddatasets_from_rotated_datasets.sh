@@ -1,8 +1,6 @@
 #!/bin/bash
 
 #SBATCH --job-name=get_2D3Ddatasets_from_rotated_datasets
-#SBATCH --output=output.log
-#SBATCH --error=error.log
 #SBATCH --nodelist=c001
 #SBATCH --gres=gpu:2
 #SBATCH --ntasks-per-node=2

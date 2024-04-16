@@ -11,7 +11,7 @@
             "program": "${workspaceFolder}/sr_3dunet/train.py",
             "console": "integratedTerminal",            
             "env": {
-                "CUDA_VISIBLE_DEVICES": "3"
+                "CUDA_VISIBLE_DEVICES": "0"
             },
             "args": [
                 "-opt",
@@ -19,7 +19,7 @@
                 // "options/pretrain_unet_3d.yml",
                 // "options/train_unet_3d.yml",
                 // "options/train_projection_cyclegan_rotatedVISoR.yml",
-                "options/MPCN_VISoR.yml",
+                "options/MPCN_wsl.yml",
             ],
             "justMyCode": false
         }

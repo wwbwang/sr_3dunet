@@ -6,6 +6,7 @@ from tqdm import tqdm
 import numpy as np
 import random
 import itertools
+import tifffile
 
 from basicsr.archs import build_network
 from basicsr.losses import build_loss
@@ -133,6 +134,7 @@ class MPCN_VISoR_Model(BaseModel):
     def optimize_parameters(self, current_iter):
         
         aniso_dimension = self.opt['datasets']['train'].get('aniso_dimension', None)
+        # half_iso_dimension=-1
         
         # optimize net_g
         for p in self.net_d_anisoproj.parameters():
@@ -149,23 +151,26 @@ class MPCN_VISoR_Model(BaseModel):
         self.optimizer_g.zero_grad()
         self.realA = self.img_cube
         self.fakeB = self.net_g_A(self.realA)
-        self.affine_fakeB, half_iso_dimension = affine_img_VISoR(self.fakeB, aniso_dimension, None)
+        self.affine_fakeB, affine_half_iso_dimension, affine_aniso_dimension\
+            = affine_img_VISoR(self.fakeB, aniso_dimension=aniso_dimension, half_iso_dimension=None)
+        half_iso_dimension = affine_aniso_dimension
         
         self.recA1 = self.net_g_B(self.fakeB)
         self.fakeC = self.net_g_B(self.affine_fakeB)
-        self.recA2 = self.net_g_B(affine_img_VISoR(self.net_g_A(self.fakeC), aniso_dimension, half_iso_dimension)[0])
+        self.recA2 = self.net_g_B(affine_img_VISoR(self.net_g_A(self.fakeC), affine_aniso_dimension, affine_half_iso_dimension)[0])
         
         # get iso and aniso projection arrays
         input_iso_proj = self.img_MIP
         
-        output_half_iso_proj0, output_aniso_proj, output_half_iso_proj1 = get_projection(self.fakeB, aniso_dimension)
+        output_aniso_proj, output_half_iso_proj0, output_half_iso_proj1 = get_projection(self.fakeB, aniso_dimension)
         proj_index = random.choice(['0', '1'])
         match = lambda x: {
             '0': (output_half_iso_proj0),
             '1': (output_half_iso_proj1)
         }.get(x, ('error0', 'error1'))
         output_half_iso_proj =  match(proj_index)
-
+        
+        # only use output_aniso_proj, output_half_iso_proj, input_iso_proj
         l_total = 0
         loss_dict = OrderedDict()
         if (current_iter % self.net_d_iters == 0 and current_iter > self.net_d_init_iters):     
@@ -286,7 +291,74 @@ class MPCN_VISoR_Model(BaseModel):
 
         if self.ema_decay > 0:
             self.model_ema(decay=self.ema_decay)
+        
+    def test(self):
+        if hasattr(self, 'net_g_ema'):
+            self.net_g_ema.eval()
+            with torch.no_grad():
+                self.img_srcube = self.net_g_ema(self.img_cube)
+        else:
+            self.net_g_A.eval()
+            with torch.no_grad():
+                self.img_srcube = self.net_g_A(self.img_cube)
+            self.net_g_A.train()
+       
+    
+    def dist_validation(self, dataloader, current_iter, tb_logger, save_img):
+        if self.opt['rank'] == 0:
+            self.nondist_validation(dataloader, current_iter, tb_logger, save_img)
+   
+     
+    def nondist_validation(self, dataloader, current_iter, tb_logger, save_img):
+        # just save val images, do not calculate metrics compared with BasicSR
+        for idx, val_data in enumerate(dataloader):
             
+            if idx==self.opt['val'].get('save_number', None):
+                break
+            
+            # img_name = osp.splitext(osp.basename(val_data['lq_path'][0]))[0]
+            self.feed_data(val_data)
+            self.test()
+
+            visuals = self.get_current_visuals()
+            img_MIP = visuals['img_MIP'].cpu().numpy()
+            img_cube = visuals['img_cube'].cpu().numpy()
+            img_srcube = visuals['img_srcube'].cpu().numpy()
+
+            # tentative for out of GPU memory
+            del self.img_MIP
+            del self.img_cube
+            del self.img_srcube
+            torch.cuda.empty_cache()
+
+            if save_img:
+                logger = get_root_logger()
+                logger.info(str(idx))
+                logger.info(f'Saving val imgs...')
+                
+                str_index = str(current_iter).zfill(len(str(self.opt['train'].get('total_iter', None))))
+                img_name = str_index + '_subindex' + str(idx).zfill(3) + '_tmp.tif' # val_data['img_name']
+                
+                val_rootpath = self.opt['path']['models'].rsplit('models', 1)[0] + 'val_imgs'
+                save_img_MIP_path = osp.join(val_rootpath, 'img_MIP')
+                save_img_cube_path = osp.join(val_rootpath, 'img_cube')
+                save_img_srcube_path = osp.join(val_rootpath, 'img_srcube')
+
+                os.makedirs(save_img_MIP_path, exist_ok=True)
+                os.makedirs(save_img_cube_path, exist_ok=True)
+                os.makedirs(save_img_srcube_path, exist_ok=True)
+                
+                tifffile.imwrite(osp.join(save_img_MIP_path, 'img_MIP_'+img_name), img_MIP)
+                tifffile.imwrite(osp.join(save_img_cube_path, 'img_cube_'+img_name), img_cube)
+                tifffile.imwrite(osp.join(save_img_srcube_path, 'img_srcube_'+img_name), img_srcube)
+    
+    def get_current_visuals(self):
+        out_dict = OrderedDict()
+        out_dict['img_MIP'] = self.img_MIP.detach().cpu()
+        out_dict['img_cube'] = self.img_cube.detach().cpu()
+        out_dict['img_srcube'] = self.img_srcube.detach().cpu()
+        return out_dict
+    
     def save(self, epoch, current_iter):
         self.save_network(self.net_g_A, 'net_g_A', current_iter)
         self.save_network(self.net_g_B, 'net_g_B', current_iter)
@@ -296,3 +368,4 @@ class MPCN_VISoR_Model(BaseModel):
         self.save_network(self.net_d_recA1, 'net_d_recA1', current_iter)
         self.save_network(self.net_d_recA2, 'net_d_recA2', current_iter)
         self.save_training_state(epoch, current_iter)
+
