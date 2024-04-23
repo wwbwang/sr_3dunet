@@ -20,6 +20,7 @@
                 // "options/train_unet_3d.yml",
                 // "options/train_projection_cyclegan_rotatedVISoR.yml",
                 "options/MPCN_wsl.yml",
+                // "--auto_resume",
             ],
             "justMyCode": false
         }

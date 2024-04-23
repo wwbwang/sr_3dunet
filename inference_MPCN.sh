@@ -1,6 +1,5 @@
-branch_name=MPCN_VISoR_nonorm_noclip # _size128
+branch_name=SIREN_noBN_noscreen_print1_
 # branch_name=MPCN_VISoR_new_datasets
-# branch_name=MPCN_VISoR_64128256
 iter='10000000000'  # nan Appoint in terminal
 
 # 从命令行获取参数

@@ -34,7 +34,8 @@ class Paired_tif_Dataset(data.Dataset):
         self.min_value = opt['min_value']
         self.max_value = opt['max_value']
         self.percentiles = opt['percentiles']
-        self.percentiles_MIP = opt['percentiles_MIP']
+        self.threshold_percentiles_cube = opt['threshold_percentiles_cube']
+        self.threshold_percentiles_MIP = opt['threshold_percentiles_MIP']
         self.threshold = opt['threshold']
         self.add_syn_times = opt['add_syn_times']
         self.screen_flag = opt['screen_flag']
@@ -71,35 +72,34 @@ class Paired_tif_Dataset(data.Dataset):
             img_cube = merge_img(img_cube_list)
             img_cube = np.clip(img_cube, self.min_value, self.max_value)
             img_cube = random_crop_3d(img_cube, self.gt_size)
-            img_cube, min_value, max_value = preprocess(img_cube, self.percentiles, self.mean)
             if self.screen_flag:
-                if max_value < self.threshold:
+                if  preprocess(img_cube, self.threshold_percentiles_cube, self.mean)[2] < self.threshold:
                     index_list = random.sample(range(len(self.rotated_cube_keys)), self.add_syn_times)
                     continue
-            
+            img_cube, min_value, max_value = preprocess(img_cube, self.percentiles, self.mean) # FIXME 还可能是norm的问题
+           
             img_rotated_cube_list = [tifffile.imread(img_rotated_cube_name) for img_rotated_cube_name in img_rotated_cube_name_list]
             img_rotated_cube = merge_img(img_rotated_cube_list)
-            # img_rotated_cube = np.sum(img_rotated_cube_list, axis=0)
             img_rotated_cube = random_crop_3d(img_rotated_cube, self.gt_size)
             img_rotated_cube = np.clip(img_rotated_cube, self.min_value, self.max_value)
             img_MIP, _, _ = get_projection(img_rotated_cube, self.iso_dimension)
             if self.screen_flag:
-                if preprocess(img_MIP, self.percentiles_MIP, self.mean)[2] < self.threshold:
+                if preprocess(img_MIP, self.threshold_percentiles_MIP, self.mean)[2] < self.threshold:
                     index_list = random.sample(range(len(self.rotated_cube_keys)), self.add_syn_times)
                     continue
+            img_MIP = (img_MIP-min_value)/(max_value-min_value)
+            img_MIP = img_MIP - self.mean     
             
-            
-            img_cube = augment_3d_rotated(img_cube, self.aniso_dimension, 
-                                        self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+            # img_cube = augment_3d_rotated(img_cube, self.aniso_dimension, 
+            #                             self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
             img_MIP = augment_2d(img_MIP,  self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
             
-            
-            img_MIP = (img_MIP-min_value)/(max_value-min_value)
-            img_MIP = img_MIP - self.mean
+
             break
         
         return {'img_cube': img_cube[None, ].astype(np.float32),
                 'img_MIP': img_MIP[None, ].astype(np.float32),
+                # 'img_rotated_cube': img_rotated_cube[None, ].astype(np.float32),
                 'img_name': img_cube_name_list[0]}
     
 
