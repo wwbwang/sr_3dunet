@@ -90,8 +90,8 @@ class Paired_tif_Dataset(data.Dataset):
             img_MIP = (img_MIP-min_value)/(max_value-min_value)
             img_MIP = img_MIP - self.mean     
             
-            # img_cube = augment_3d_rotated(img_cube, self.aniso_dimension, 
-            #                             self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+            img_cube = augment_3d_rotated(img_cube, self.aniso_dimension, 
+                                        self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
             img_MIP = augment_2d(img_MIP,  self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
             
 
