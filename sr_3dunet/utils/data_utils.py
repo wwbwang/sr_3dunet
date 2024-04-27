@@ -257,60 +257,38 @@ def get_rotated_img(raw_img, device, aniso_dimension=-2):
 
         center_x = desired_height // 2
         center_y = desired_height // 2
-        rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+        rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), -45, 1)
 
         extend_img = np.pad(img, ((border_height, border_height), (border_width, border_width)), mode='constant')
         rotated_img = cv2.warpAffine(extend_img, rotation_matrix, (desired_width, desired_height))
         list_img.append(rotated_img)
-        
-def get_anti_rotated_img(raw_img, device, aniso_dimension=-2):
-    raw_img = raw_img.astype(np.float32)
-    list_img = []
-    for i in range(raw_img.shape[aniso_dimension]):
-        img = raw_img[..., i, :]
-        height, width = img.shape
-        max_size = max(height, width)
-
-        desired_height = int(max_size * 1.414213) // 2 * 2
-        desired_width = int(max_size * 1.414213) // 2 * 2
-
-        border_height = (desired_height - height) // 2
-        border_width = (desired_width - width) // 2
-
-        center_x = desired_height // 2
-        center_y = desired_height // 2
-        rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
-
-        extend_img = np.pad(img, ((border_height, border_height), (border_width, border_width)), mode='constant')
-        rotated_img = cv2.warpAffine(extend_img, rotation_matrix, (desired_width, desired_height))
-        list_img.append(rotated_img)
-        
+    
     return extend_block_utils(np.stack(list_img, axis=1))
 
-# def get_anti_rotated_img(raw_img, origin_shape=(128, 128, 128), aniso_dimension=-2):
-#     raw_img = raw_img.astype(np.float32)
-#     list_img = []
-#     origin_height, _, origin_width = origin_shape
-#     max_size = max(origin_height, origin_width)
-#     desired_height = int(max_size * 1.414213) // 2 * 2
-#     desired_width = int(max_size * 1.414213) // 2 * 2
+def get_anti_rotated_img(raw_img, origin_shape=(128, 128, 128), aniso_dimension=-2):
+    raw_img = raw_img.astype(np.float32)
+    list_img = []
+    origin_height, _, origin_width = origin_shape
+    max_size = max(origin_height, origin_width)
+    desired_height = int(max_size * 1.414213) // 2 * 2
+    desired_width = int(max_size * 1.414213) // 2 * 2
     
-#     border_height = (desired_height - origin_height) // 2
-#     border_width = (desired_width - origin_width) // 2
+    border_height = (desired_height - origin_height) // 2
+    border_width = (desired_width - origin_width) // 2
 
-#     center_x = desired_height // 2
-#     center_y = desired_height // 2
+    center_x = desired_height // 2
+    center_y = desired_height // 2
     
-#     for i in range(raw_img.shape[aniso_dimension]):
-#         img = raw_img[..., i, :]
-#         img = img[:desired_height, :desired_width]
-#         rotation_matrix_inv = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+    for i in range(raw_img.shape[aniso_dimension]):
+        img = raw_img[..., i, :]
+        img = img[:desired_height, :desired_width]
+        rotation_matrix_inv = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
 
-#         rotated_img = cv2.warpAffine(img, rotation_matrix_inv, (desired_width, desired_height))
-#         list_img.append(rotated_img[border_height:-border_height, border_width:-border_width])
+        rotated_img = cv2.warpAffine(img, rotation_matrix_inv, (desired_width, desired_height))
+        list_img.append(rotated_img[border_height:-border_height, border_width:-border_width])
         
-#     out_img = np.stack(list_img, axis=1)
-#     return out_img
+    out_img = np.stack(list_img, axis=1)
+    return out_img
 
 def get_rotated_projection(img, aniso_dimension=-2):   # 默认左上到右下倾斜
     if aniso_dimension == -2:
