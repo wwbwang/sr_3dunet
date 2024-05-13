@@ -11,6 +11,7 @@
     ```bash
     # Install dependent packages
     python==3.9.0
+    pip install basicsr
     pip install -r requirements.txt
 
     # Install sr_3dunet
@@ -20,10 +21,9 @@
 **Inference**
 
 ```bash
-CUDA_VISIBLE_DEVICES=0 python scripts/inference.py \
-    --expname "base_ver" --num_io_consumer 1\
-    -i /home/wangwb/workspace/sr_3dunet/datasets/rotated_blocks/val_rotated_small\
-    -o /home/wangwb/workspace/sr_3dunet/results/stable_res\
-    --model_path /home/wangwb/workspace/sr_3dunet/weights/net_g_A_70000.pth\
-    --piece_flag True --piece_size 128 --overlap 16 --step_size 16 --rotated_flag True
+# inference tif files in folder
+bash inference_from_folder.sh
+
+# inference a single h5 file(still in testing)
+bash inference_from_h5.sh
 ```

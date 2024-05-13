@@ -1,6 +1,6 @@
 # general settings
-name: MPCN_VISoR_cellbody
-model_type: MPCN_VISoR_Model
+name: MPCN_VISoR_oldbaseline_cellbody_3projD_aug3dflag
+model_type: MPCN_VISoR_3projD_Model
 num_gpu: auto  # set num_gpu: 0 for cpu mode
 manual_seed: 0
 
@@ -13,29 +13,28 @@ manual_seed: 0
 datasets:
   train:
     name: rotated_blocks
-    type: Paired_tif_Dataset
+    type: Old_Paired_tif_Dataset
     datasets_cube: /share/home/wangwb/workspace/sr_3dunet/datasets/cellbody/front_256_datasets
-    datasets_rotated_cube: /share/home/wangwb/workspace/sr_3dunet/datasets/cellbody/rotated_front_256_datasets
+    datasets_MIP: /share/home/wangwb/workspace/sr_3dunet/datasets/cellbody/MIP_256_datasets
     test_mode: False
     mean: 0 # 0.254 # 0.1535 # 0.0728 # 0.141
-    percentiles: [0.01,0.9999]
-    percentiles_MIP: [0.01,0.99999]
+    percentiles: [0.01, 0.9999]
+    aug3dflag: True
     min_value: 0
     max_value: 65535
-    threshold: 500
     io_backend:
       type: disk    
     use_flip: true
     use_rot: true
     gt_size: [64, 128] # fullsize is 128
     gt_probs: [1, 0]
-    iso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
+    # iso_dimension: -1 # -3/-2/-1 <--> 0/1/2, means anisotropic in dimension 2
     aniso_dimension: -2
 
     # data loader
     use_shuffle: true
-    num_worker_per_gpu: 8
-    batch_size_per_gpu: 8
+    num_worker_per_gpu: 6
+    batch_size_per_gpu: 2
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
     pin_memory: True
@@ -45,51 +44,51 @@ network_g_A:
   type: UNet_3d_Generator
   in_channels: 1
   out_channels: 1
-  features: [64, 128, 256] # [64, 128, 256, 512]
-  # norm_type: instance
+  features: [64, 128, 256, 512]
+  norm_type: ~ # can be None
   dim: 3
 
 network_g_B:
   type: UNet_3d_Generator
   in_channels: 1
   out_channels: 1
-  features: [64, 128, 256] # [64, 128, 256, 512]
-  # norm_type: instance
+  features: [64, 128, 256, 512]
+  norm_type: ~ # can be None
   dim: 3
 
 network_d_anisoproj:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  # norm_type: 'batch'
+  norm_type: ~ # 'batch' # can be None
   dim: 2
 
 network_d_isoproj:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  # norm_type: 'batch'
+  norm_type: ~ # 'batch' # can be None
   dim: 2
 
 network_d_A2C:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  # norm_type: 'batch'
+  norm_type: ~ # 'batch' # can be None
   dim: 3
 
 network_d_recA1:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  # norm_type: 'batch'
+  norm_type: ~ # 'batch' # can be None
   dim: 3
 
 network_d_recA2:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  # norm_type: 'batch'
+  norm_type: ~ # 'batch' # can be None
   dim: 3
 
 # path
@@ -97,7 +96,7 @@ path:
   pretrain_network_g_A: ~
   pretrain_network_g_B: ~
   pretrain_network_d_anisoproj: ~
-  pretrain_network_d_iso: ~
+  pretrain_network_d_isoproj: ~
   pretrain_network_d_A2C: ~
   pretrain_network_d_recA1: ~
   pretrain_network_d_recA2: ~
@@ -187,6 +186,6 @@ logger:
 # dist training settings
 dist_params:
   backend: nccl
-  port: 29501
+  port: 29500
 
 find_unused_parameters: true

@@ -1,5 +1,5 @@
 # general settings
-name: SIREN_screenflag_0.9max
+name: SIREN_baseline_VISoR
 model_type: MPCN_VISoR_Model
 num_gpu: auto  # set num_gpu: 0 for cpu mode
 manual_seed: 0
@@ -36,8 +36,8 @@ datasets:
 
     # data loader
     use_shuffle: true
-    num_worker_per_gpu: 8
-    batch_size_per_gpu: 8
+    num_worker_per_gpu: 4
+    batch_size_per_gpu: 4
     dataset_enlarge_ratio: 1
     prefetch_mode: ~ # cuda  # FIXME
     pin_memory: True
@@ -70,7 +70,7 @@ network_g_A:
   type: UNet_3d_Generator
   in_channels: 1
   out_channels: 1
-  features: [64, 128, 256] # [64, 128, 256, 512]
+  features: [64, 128, 256, 512]
   norm_type: ~ # can be None
   dim: 3
 
@@ -78,7 +78,7 @@ network_g_B:
   type: UNet_3d_Generator
   in_channels: 1
   out_channels: 1
-  features: [64, 128, 256] # [64, 128, 256, 512]
+  features: [64, 128, 256, 512]
   norm_type: ~ # can be None
   dim: 3
 
@@ -197,7 +197,7 @@ train:
 
 # validation settings
 val:
-  val_freq: !!float 50   # FIXME
+  val_freq: !!float 500   # FIXME
   save_img: True
   save_number: 2
 

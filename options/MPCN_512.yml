@@ -1,5 +1,5 @@
 # general settings
-name: SIREN_baseline_norm9985
+name: SIREN_baseline_512
 model_type: MPCN_Model
 num_gpu: auto  # set num_gpu: 0 for cpu mode
 manual_seed: 0
@@ -16,7 +16,7 @@ datasets:
     type: Unet_3D_Dataset
     dataroot_gt: /share/home/wangwb/workspace/sr_3dunet/datasets/Monkey_Brain/rotated_datasets
     mean: 0 # 0.254 # 0.1535 # 0.0728 # 0.141
-    percentiles: [0.01,0.9985]
+    percentiles: [0.01,0.999]
     min_value: 0
     max_value: 65535
     io_backend:
@@ -30,7 +30,7 @@ datasets:
     # data loader
     use_shuffle: true
     num_worker_per_gpu: 6
-    batch_size_per_gpu: 4 # 16
+    batch_size_per_gpu: 2 # 16
     dataset_enlarge_ratio: 1
     prefetch_mode: ~
     pin_memory: True
@@ -40,7 +40,7 @@ network_g_A:
   type: UNet_3d_Generator
   in_channels: 1
   out_channels: 1
-  features: [64, 128, 256] # [64, 128, 256, 512]
+  features: [64, 128, 256, 512]
   norm_type: ~ # can be None
   dim: 3
 
@@ -48,7 +48,7 @@ network_g_B:
   type: UNet_3d_Generator
   in_channels: 1
   out_channels: 1
-  features: [64, 128, 256] # [64, 128, 256, 512]
+  features: [64, 128, 256, 512]
   norm_type: ~ # can be None
   dim: 3
 
@@ -92,7 +92,7 @@ path:
   pretrain_network_g_A: ~
   pretrain_network_g_B: ~
   pretrain_network_d_anisoproj: ~
-  pretrain_network_d_isoproj: ~
+  pretrain_network_d_iso: ~
   pretrain_network_d_A2C: ~
   pretrain_network_d_recA1: ~
   pretrain_network_d_recA2: ~

@@ -182,6 +182,7 @@ def postprocess(img, min_value, max_value, dataset_mean=0.153):
     img = img + dataset_mean
     # img = np.square(img)
     img = img * (max_value - min_value) + min_value
+    img = np.clip(img, 0, 65535)
     return img
 
 def get_projection(img, iso_dimension):
@@ -257,7 +258,7 @@ def get_rotated_img(raw_img, device, aniso_dimension=-2):
 
         center_x = desired_height // 2
         center_y = desired_height // 2
-        rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), -45, 1)
+        rotation_matrix = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
 
         extend_img = np.pad(img, ((border_height, border_height), (border_width, border_width)), mode='constant')
         rotated_img = cv2.warpAffine(extend_img, rotation_matrix, (desired_width, desired_height))
@@ -282,7 +283,7 @@ def get_anti_rotated_img(raw_img, origin_shape=(128, 128, 128), aniso_dimension=
     for i in range(raw_img.shape[aniso_dimension]):
         img = raw_img[..., i, :]
         img = img[:desired_height, :desired_width]
-        rotation_matrix_inv = cv2.getRotationMatrix2D((center_x, center_y), 45, 1)
+        rotation_matrix_inv = cv2.getRotationMatrix2D((center_x, center_y), -45, 1)
 
         rotated_img = cv2.warpAffine(img, rotation_matrix_inv, (desired_width, desired_height))
         list_img.append(rotated_img[border_height:-border_height, border_width:-border_width])

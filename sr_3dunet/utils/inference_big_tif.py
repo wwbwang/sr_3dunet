@@ -65,7 +65,6 @@ def handle_bigtif(model, piece_size, overlap, img):
     img_out = torch.zeros_like(img)
     
     _, _, h_now, w_now, d_now = img_out.shape
-    # img_tmp = torch.zeros_like(img)
     
     for start_h in range(0, h, piece_size-overlap):
         end_h = start_h + piece_size

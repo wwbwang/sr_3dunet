@@ -14,12 +14,8 @@ from os import path as osp
 from tqdm import tqdm
 from functools import partial
 
-from sr_3dunet.utils.inference_base import get_base_argument_parser
 from sr_3dunet.utils.data_utils import preprocess, postprocess, get_rotated_img, get_anti_rotated_img, str2bool
-from sr_3dunet.utils.get_MIP import get_and_save_MIP
 from sr_3dunet.utils.inference_big_tif import handle_bigtif
-from basicsr.data.transforms import mod_crop
-from basicsr.utils.img_util import img2tensor, tensor2img
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def remove_outer_layer(matrix, remove_size):
@@ -55,7 +51,11 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
 
 @torch.no_grad()
 def main():
-    parser = get_base_argument_parser()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input', type=str, default='inputs', help='input test image folder or video path')
+    parser.add_argument('-o', '--output', type=str, default='results', help='save image/video path')
+    parser.add_argument(
+        '--expname', type=str, default='MPCN', help='A unique name to identify your current inference')
     parser.add_argument('--num_io_consumer', type=int, default=3, help='number of IO consumer')
     parser.add_argument('--model_path', type=str, help='model_path')
     parser.add_argument('--model_back_path', type=str, help='model_back_path')
@@ -86,7 +86,7 @@ def main():
     os.makedirs(os.path.join(args.output, "C_affine"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec_out"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec2"), exist_ok=True)
-    percentiles=[0,1] # [0.01,0.999999] # [0.01, 0.9985]
+    percentiles=[0, 0.9999] # [0.01,0.999999] # [0.01, 0.9985]
     dataset_mean=0
 
     img_path_list = os.listdir(args.input)
@@ -121,10 +121,10 @@ def main():
         end_time = time.time()
         # print("avg-time_model_back:", (end_time-start_time)*1000, "N, C, H, W, D:", origin_shape)
         
-        out_affine_img = out_img.transpose(-1, -2)
+        out_affine_img = out_img.transpose(-1, -3)
         C_img = model_back(out_affine_img)
-        C_affine_img = C_img.transpose(-1, -2)
-        rec_outimg = model(C_img).transpose(-1, -2)
+        C_affine_img = C_img.transpose(-1, -3)
+        rec_outimg = model(C_img).transpose(-1, -3)
         rec2_img = model_back(rec_outimg)
         
         
