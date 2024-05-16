@@ -87,19 +87,16 @@ def handle_bigtif(model, piece_size, overlap, img):
                 
                 img_out[:, :, start_h+h_cutleft:end_h-h_cutright, start_w+w_cutleft:end_w-w_cutright, start_d+d_cutleft:end_d-d_cutright] = img_tmp[
                                             :,:,0+h_cutleft:piece_size-h_cutright, 0+w_cutleft:piece_size-w_cutright, 0+d_cutleft:piece_size-d_cutright]
-                
                 if end_d==d_now:
                     break
             if end_w==w_now:
                 break
         if end_h==h_now:
             break
-            
-
-                
     return img_out[:,:,:h,:w,:d]
     
     
+
                                     
                 # if (end_h-start_h)%piece_size!=0 or (end_w-start_w)%piece_size!=0 or (end_d-start_d)%piece_size!=0:
                 #     extend_img = extend_block(img[:, :, start_h:end_h, start_w:end_w, start_d:end_d], piece_mod_size)
