@@ -20,8 +20,16 @@ source activate MPCN
 
 CUDA_VISIBLE_DEVICES=0 python scripts/inference_from_h5.py \
     -i /share/data/VISoR_Reconstruction/SIAT_ION/LiuCiRong/20230910_CJ004/CJ4-1um-ROI1/CJ4ROI1.ims \
-    -o datasets/cellbody/out_h5/output_res0.h5 \
-    --h5_dir "DataSet/ResolutionLevel 0/TimePoint 0/Channel 0/Data" \
-    --model_path weights/MPCN_VISoR_oldbaseline_cellbody_correctproj_net_g_80000.pth \
-    --piece_size 128 --piece_overlap 16
+    -o datasets/NISSL/RESIN_CJ4ROI1_NISSL_piece64/output_res0.h5 \
+    --h5_dir "DataSet/ResolutionLevel 0/TimePoint 0/Channel 1/Data" \
+    --model_path weights/MPCN_VISoR_NISSL_percentiles01_net_g_A_36000.pth \
+    --piece_size 64 --piece_overlap 16
+
+# CUDA_VISIBLE_DEVICES=0 python scripts/inference_from_h5.py \
+#     -i /share/data/VISoR_Reconstruction/SIAT_ION/LiuCiRong/20230910_CJ004/CJ4-1um-ROI1/CJ4ROI1.ims \
+#     -o datasets/cellbody/RESIN_CJ4ROI1_DAPI_piece64/output_res0.h5 \
+#     --h5_dir "DataSet/ResolutionLevel 0/TimePoint 0/Channel 0/Data" \
+#     --model_path weights/MPCN_VISoR_oldbaseline_cellbody_3projD_256_net_g_A_80000.pth \
+#     --piece_size 64 --piece_overlap 16
     
+# python scripts/get_2D3Ddatasets_from_rotated_datasets.py

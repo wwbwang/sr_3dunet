@@ -11,7 +11,7 @@ source activate MPCN
 
 CUDA_VISIBLE_DEVICES=0,1 srun\
  --ntasks-per-node=2 --mpi=pmi2 python sr_3dunet/train.py \
- -opt options/MPCN_VISoR_old.yml --launcher="slurm" # --auto_resume
+ -opt options/MPCN_VISoR_NISSL.yml --launcher="slurm" # --auto_resume
 
 # CUDA_VISIBLE_DEVICES=0,1 srun\
 #  --ntasks-per-node=2 --mpi=pmi2 python sr_3dunet/train.py \

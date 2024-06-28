@@ -6,6 +6,7 @@ import os
 import random
 from tqdm import tqdm
 import cv2
+import math
 
 from sr_3dunet.utils.data_utils import get_projection, get_rotated_img, crop_block
 
@@ -69,9 +70,10 @@ minmax = 400
 
 input_ims_name = 'CJ4ROI1'
 input_ims_path = "/share/data/VISoR_Reconstruction/SIAT_ION/LiuCiRong/20230910_CJ004/CJ4-1um-ROI1/" + input_ims_name + ".ims"
-output_front_folder = "/share/home/wangwb/workspace/sr_3dunet/datasets/cellbody/front_"+str(size)+"_datasets"
-output_rotated_front_folder = "/share/home/wangwb/workspace/sr_3dunet/datasets/cellbody/rotated_front_"+str(size)+"_datasets"
-output_back_folder = "/share/home/wangwb/workspace/sr_3dunet/datasets/cellbody/back_"+str(size)+"_datasets"
+output_front_folder = "/share/home/wangwb/workspace/sr_3dunet/datasets/NISSL/front_"+str(size)+"_datasets"
+output_rotated_front_folder = "/share/home/wangwb/workspace/sr_3dunet/datasets/NISSL/rotated_front_"+str(size)+"_datasets"
+output_back_folder = "/share/home/wangwb/workspace/sr_3dunet/datasets/NISSL/back_"+str(size)+"_datasets"
+channel = 1
 
 aniso_dimension = -2    # do not change
 iso_dimension = -1      # do not change
@@ -86,14 +88,19 @@ if not os.path.exists(output_back_folder):
     os.makedirs(output_back_folder, exist_ok=True)
 
 h5 = h5py.File(input_ims_path, 'r')
-img_total = h5['DataSet']['ResolutionLevel 0']['TimePoint 0']['Channel 0']['Data']
+img_total = h5['DataSet']['ResolutionLevel 0']['TimePoint 0']['Channel '+str(channel)]['Data']
 
 index_total = 0
 index_partial = 0
 
-for start_x in tqdm(range(x_floor, x_upper-size+1, stride), desc="1st loop"):
-    for start_y in tqdm(range(y_floor, y_upper-size+1, stride), desc="2st loop"):
-        for start_z in tqdm(range(z_floor, z_upper-size+1, stride), desc="3st loop", leave=False):
+len1 = math.ceil((x_upper-size+1-x_floor)/stride)
+len2 = math.ceil((y_upper-size+1-y_floor)/stride)
+len3 = math.ceil((z_upper-size+1-z_floor)/stride)
+pbar1 = tqdm(total=len1*len2*len3, unit='img', desc='create dataset')
+
+for start_x in range(x_floor, x_upper-size+1, stride):
+    for start_y in range(y_floor, y_upper-size+1, stride):
+        for start_z in range(z_floor, z_upper-size+1, stride):
             index_total += 1
             now_img = img_loader(img_total, start_z, start_y, start_x, size)
             now_img = now_img.transpose(2,1,0)
@@ -114,6 +121,8 @@ for start_x in tqdm(range(x_floor, x_upper-size+1, stride), desc="1st loop"):
             else:
                  tifffile.imwrite(os.path.join(output_back_folder, input_ims_name+'_'+str(start_x)+'_'+str(start_y)+'_'+str(start_z)+'.tif'), now_img)
             
+            pbar1.update(1)
+
 print('front_ground/back_ground: '+str(index_partial)+'/'+str(index_total))
 
 

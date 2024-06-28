@@ -15,7 +15,7 @@ from tqdm import tqdm
 from functools import partial
 
 from sr_3dunet.utils.data_utils import preprocess, postprocess, get_rotated_img, get_anti_rotated_img, str2bool
-from sr_3dunet.utils.inference_big_tif import handle_bigtif
+from sr_3dunet.utils.inference_big_tif import handle_bigtif_bk as handle_bigtif
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def remove_outer_layer(matrix, remove_size):
@@ -47,7 +47,8 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
     model_back.eval()
     model_back = model_back.to(device)
 
-    return model.half() if args.half else model, model_back.half() if args.half else model_back
+    return model, model_back
+    # return model.half() if args.half else model, model_back.half() if args.half else model_back
 
 @torch.no_grad()
 def main():
@@ -86,7 +87,7 @@ def main():
     os.makedirs(os.path.join(args.output, "C_affine"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec_out"), exist_ok=True)
     os.makedirs(os.path.join(args.output, "rec2"), exist_ok=True)
-    percentiles=[0, 0.9999] # [0.01,0.999999] # [0.01, 0.9985]
+    percentiles=[0, 1] # [0, 0.9999] # [0.01,0.999999] # [0.01, 0.9985]
     dataset_mean=0
 
     img_path_list = os.listdir(args.input)
@@ -109,7 +110,9 @@ def main():
 
         start_time = time.time()
         torch.cuda.synchronize()
+        print('input', img.max())
         out_img = model(img)
+        print('output', out_img.max())
         torch.cuda.synchronize()
         end_time = time.time()
         # print("avg-time_model:", (end_time-start_time)*1000, "N, C, H, W, D:", origin_shape)
@@ -117,6 +120,7 @@ def main():
         start_time = time.time()
         torch.cuda.synchronize()
         rec1_img = model_back(out_img)
+        print('rec', rec1_img.max())
         torch.cuda.synchronize()
         end_time = time.time()
         # print("avg-time_model_back:", (end_time-start_time)*1000, "N, C, H, W, D:", origin_shape)

@@ -24,6 +24,6 @@
 # inference tif files in folder
 bash inference_from_folder.sh
 
-# inference a single h5 file(still in testing)
+# inference a single h5 file
 bash inference_from_h5.sh
 ```

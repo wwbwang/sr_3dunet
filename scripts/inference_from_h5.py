@@ -17,7 +17,7 @@ from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
     # set up model
-    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256, 512], norm_type=None, dim=3)
+    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256], norm_type=None, dim=3)
 
     model_path = args.model_path
     assert os.path.isfile(model_path), \
@@ -42,7 +42,7 @@ def main():
     parser.add_argument('--half', action='store_true', help='use half precision to inference')
     parser.add_argument('--num_io_consumer', type=int, default=3, help='number of IO consumer')
     parser.add_argument('--model_path', type=str, help='model_path')
-    parser.add_argument('--piece_size', type=int, default=128, help='piece_size')
+    parser.add_argument('--piece_size', type=int, default=64, help='piece_size')
     parser.add_argument('--piece_overlap', type=int, default=16, help='piece_overlap')
     parser.add_argument('--h5_dir', default='DataSet/ResolutionLevel 0/TimePoint 0/Channel 3/Data', help='Directory of the h5 file, separated by : ')
     args = parser.parse_args()
@@ -52,7 +52,7 @@ def main():
     print("Model size: {:.5f}M".format(sum(p.numel() for p in model.parameters())*4/1048576))
     print("Model parameters: {}".format(sum(p.numel() for p in model.parameters())))
 
-    percentiles=[0, 0.9999] # [0.01,0.999999] # [0.01, 0.9985]
+    percentiles=[0, 1] # [0, 0.9999] # [0.01,0.999999] # [0.01, 0.9985]
     dataset_mean=0
     
     h5 = h5py.File(args.input, 'r')
@@ -62,6 +62,8 @@ def main():
         img_total = img_total[key]
     h, w, d = img_total.shape
     
+    if not os.path.exists(args.output):
+        os.makedirs(os.path.dirname(args.output), exist_ok=True)
     with h5py.File(args.output, 'w') as f:
         f.create_dataset(args.h5_dir, shape=img_total.shape, chunks=(1, 256, 256), dtype=img_total.dtype)
     

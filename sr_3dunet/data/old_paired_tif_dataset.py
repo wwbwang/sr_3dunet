@@ -26,6 +26,7 @@ class Old_Paired_tif_Dataset(data.Dataset):
         self.datasets_cube = opt['datasets_cube']
         self.datasets_MIP = opt['datasets_MIP']
         self.aniso_dimension = opt['aniso_dimension']
+        self.iso_dimension = opt['iso_dimension']
         self.gt_size = opt['gt_size']
         self.gt_probs = opt['gt_probs']
         self.gt_size = random.choices(self.gt_size, self.gt_probs)[0]
@@ -65,17 +66,22 @@ class Old_Paired_tif_Dataset(data.Dataset):
         img_cube = random_crop_3d(img_cube, self.gt_size)
         img_cube, min_value, max_value = preprocess(img_cube, self.percentiles, self.mean)
         
-        img_MIP = tifffile.imread(img_MIP_name)
-        img_MIP = np.clip(img_MIP, self.min_value, self.max_value)
-        img_MIP = random_crop_2d(img_MIP, self.gt_size)
+        img_MIP_cube = tifffile.imread(img_MIP_name)
+        img_MIP_cube = np.clip(img_MIP_cube, self.min_value, self.max_value)
+        img_MIP_cube = random_crop_3d(img_MIP_cube, self.gt_size)
+        img_MIP_cube, _, _ = preprocess(img_MIP_cube, self.percentiles, self.mean)
+        img_MIP, _, _ = get_projection(img_MIP_cube, self.iso_dimension)
+        # start_index = random.randint(0, img_MIP_cube.shape[self.iso_dimension]-self.gt_size-1)        
+        # img_MIP, _, _ = get_projection(img_MIP_cube[:,:,start_index:start_index+self.gt_size], self.iso_dimension)
+        # img_MIP = random_crop_2d(img_MIP, self.gt_size)
         
         if self.aug3dflag:
             img_cube = augment_3d_rotated(img_cube, self.aniso_dimension, 
                                         self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         img_MIP = augment_2d(img_MIP, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
-        img_MIP = (img_MIP-min_value)/(max_value-min_value)
-        img_MIP = img_MIP - self.mean
+        # img_MIP = (img_MIP-min_value)/(max_value-min_value)
+        # img_MIP = img_MIP - self.mean
             
         return {'img_cube': img_cube[None, ].astype(np.float32),
                 'img_MIP': img_MIP[None, ].astype(np.float32),
