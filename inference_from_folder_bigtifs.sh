@@ -9,12 +9,8 @@
 # piece_size: Effective when piece_Flag is true, determining the size of smaller TIFFs
 # piece_overlap: Effective when piece_Flag is true, overlap between neighboring small TIFFs
 
-CUDA_VISIBLE_DEVICES=0 python scripts/inference_from_folder.py \
-    -i /share/home/wangwb/workspace/sr_3dunet/datasets/rm009_labeled/bg \
-    -o /share/home/wangwb/workspace/sr_3dunet/datasets/rm009_labeled/bg_sr \
+CUDA_VISIBLE_DEVICES=0 python scripts/inference_from_folder_bigtifs.py \
+    -i /share/home/wangwb/workspace/sr_3dunet/datasets/axons \
+    -o /share/home/wangwb/workspace/sr_3dunet/datasets/axons_sr_uint \
     --model_path /share/home/wangwb/workspace/sr_3dunet/weights/MPCN_VISoR_oldbaseline_256_net_g_A_140000.pth \
-    --piece_flag True --piece_size 128 --piece_overlap 16
-
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/bigbigtif
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/bigtif
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/test
+    --piece_size 64 --piece_overlap 16

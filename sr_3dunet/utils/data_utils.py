@@ -169,21 +169,19 @@ def preprocess(img, percentiles, dataset_mean):  # 再加一个数量级就获�
     flattened_arr = np.sort(img.flatten())
     clip_low = int(percentiles[0] * len(flattened_arr))
     clip_high = int(percentiles[1] * len(flattened_arr))
-    img = np.clip(img, flattened_arr[clip_low], flattened_arr[clip_high-1])
-    # img = np.sqrt(img)
+    clipped_arr = np.clip(img, flattened_arr[clip_low], flattened_arr[clip_high-1])
 
-    min_value = np.min(img)
-    max_value = np.max(img) 
-    # min_value = 0
-    # max_value = 256
-    img = (img-min_value)/(max_value-min_value)
+    min_value = np.min(clipped_arr)
+    max_value = np.max(clipped_arr) 
+    img = (clipped_arr-min_value)/(max_value-min_value)
+    # img = np.sqrt(img)
     img = img - dataset_mean
     return img, min_value, max_value
 
-def postprocess(img, min_value, max_value, dataset_mean=0):
+def postprocess(img, min_value, max_value, dataset_mean=0.153):
     img = img + dataset_mean
-    img = img * (max_value - min_value) + min_value
     # img = np.square(img)
+    img = img * (max_value - min_value) + min_value
     img = np.clip(img, 0, 65535)
     return img
 
@@ -244,7 +242,7 @@ def extend_block_utils(img, step_size=16, dim=3):
     else:
         return extend_block_(img)
 
-def get_rotated_img(raw_img, device, aniso_dimension=-2):
+def get_rotated_img(raw_img, device=None, aniso_dimension=-2):
     raw_img = raw_img.astype(np.float32)
     list_img = []
     for i in range(raw_img.shape[aniso_dimension]):

@@ -15,7 +15,7 @@ from tqdm import tqdm
 from functools import partial
 
 from sr_3dunet.utils.data_utils import preprocess, postprocess, get_rotated_img, get_anti_rotated_img, str2bool
-from sr_3dunet.utils.inference_big_tif import handle_bigtif, handle_smalltif
+from sr_3dunet.utils.inference_big_tif import handle_bigtif_bk as handle_bigtif, handle_smalltif
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def get_inference_model(args, device) -> UNet_3d_Generator:
@@ -60,7 +60,7 @@ def main():
     dataset_mean=0
     
     if args.piece_flag:
-        model_pipeline = partial(handle_bigtif, model, args.piece_size, args.piece_overlap, percentiles, dataset_mean, device)
+        model = partial(handle_bigtif, model, args.piece_size, args.piece_overlap)
     else:
         model_pipeline = partial(handle_smalltif, model, args.piece_size, args.piece_overlap, percentiles, dataset_mean, device)
 
@@ -73,26 +73,24 @@ def main():
     
     for img_path in img_path_list:
         img = tifffile.imread(os.path.join(args.input, img_path)) # [:200,:200,:200]
-        
-        # img = np.clip(img, 0, 65535)
-        # origin_shape = img.shape
-        # img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
+        img = np.clip(img, 0, 65535)
+        origin_shape = img.shape
+        img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
             
-        # img = img.astype(np.float32)[None, None,]
-        # img = torch.from_numpy(img).to(device)     # to float32
+        img = img.astype(np.float32)[None, None,]
+        img = torch.from_numpy(img).to(device)     # to float32
 
-        # start_time = time.time()
-        # torch.cuda.synchronize()
-        out_img = model_pipeline(img)
-        # torch.cuda.synchronize()
-        # end_time = time.time()
-        # print("avg-time_model:", (end_time-start_time)*1000, "ms,", "N, C, H, W, D:", origin_shape)
+        start_time = time.time()
+        torch.cuda.synchronize()
+        out_img = model(img)
+        torch.cuda.synchronize()
+        end_time = time.time()
+        print("avg-time_model:", (end_time-start_time)*1000, "ms,", "N, C, H, W, D:", origin_shape)
 
-        # out_img = out_img[0,0].cpu().numpy() # [0:final_size, 0:final_size, 0:final_size]
-        # out_img = postprocess(out_img, min_value, max_value, dataset_mean)
+        out_img = out_img[0,0].cpu().numpy() # [0:final_size, 0:final_size, 0:final_size]
         
-        # out_img = out_img.astype(np.uint16)
-        tifffile.imwrite(os.path.join(args.output, "output" + img_path), out_img)
+        tifffile.imwrite(os.path.join(args.output, "output" + img_path),
+                        postprocess(out_img, min_value, max_value, dataset_mean))
         
         pbar1.update(1)
 

@@ -44,7 +44,6 @@ def main():
     parser.add_argument('--model_path', type=str, help='model_path')
     parser.add_argument('--piece_size', type=int, default=64, help='piece_size')
     parser.add_argument('--piece_overlap', type=int, default=16, help='piece_overlap')
-    parser.add_argument('--h5_dir', default='DataSet/ResolutionLevel 0/TimePoint 0/Channel 3/Data', help='Directory of the h5 file, separated by : ')
     args = parser.parse_args()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')

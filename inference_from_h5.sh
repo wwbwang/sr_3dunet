@@ -12,7 +12,6 @@
 CUDA_VISIBLE_DEVICES=0 python scripts/inference_from_h5.py \
     -i /share/data/VISoR_Reconstruction/SIAT_ION/LiuCiRong/20230910_CJ004/CJ4-1um-ROI1/CJ4ROI2.ims \
     -o datasets/NISSL/CJ4ROI2_out_h5_piece64/output_res0.h5 \
-    --h5_dir "DataSet/ResolutionLevel 0/TimePoint 0/Channel 0/Data" \
     --model_path weights/MPCN_VISoR_NISSL_net_g_A_110000.pth \
     --piece_size 64 --piece_overlap 16
 
