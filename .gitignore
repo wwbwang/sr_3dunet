@@ -152,3 +152,5 @@ BK
 version.py
 
 *.out
+
+slurm_logs

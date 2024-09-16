@@ -100,7 +100,7 @@ def main():
         origin_shape = img.shape
         img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
         tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path),
-                         remove_outer_layer(postprocess(img, min_value, max_value, dataset_mean=dataset_mean), args.remove_size))
+                         remove_outer_layer(postprocess(img, min_value, max_value, dataset_mean=dataset_mean), args.remove_size).astype(np.uint16))
                 
         if args.rotated_flag:
             img = get_rotated_img(img, device)
@@ -111,6 +111,7 @@ def main():
         start_time = time.time()
         torch.cuda.synchronize()
         print('input', img.max())
+        print('input', img.shape)
         out_img = model(img)
         print('output', out_img.max())
         torch.cuda.synchronize()
@@ -151,7 +152,7 @@ def main():
             rec2_img = rec2_img[0,0].cpu().numpy() # [0:final_size, 0:final_size, 0:final_size]
         
         tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path),
-                         remove_outer_layer(postprocess(out_img, min_value, max_value, dataset_mean), args.remove_size))
+                         remove_outer_layer(postprocess(out_img, min_value, max_value, dataset_mean), args.remove_size).astype(np.uint16))
         tifffile.imwrite(os.path.join(args.output, "rec1", "rec1" + img_path),
                          remove_outer_layer(postprocess(rec1_img, min_value, max_value, dataset_mean), args.remove_size))
         tifffile.imwrite(os.path.join(args.output, "out_affine", "out_affine" + img_path),

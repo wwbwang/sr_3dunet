@@ -1,21 +1,16 @@
 #!/bin/bash
 
-#SBATCH --job-name=MPCN_VISoR_cellbody
-#SBATCH --nodelist=c002
-#SBATCH --gres=gpu:2
-#SBATCH --ntasks-per-node=2
-#SBATCH --ntasks=2
-#SBATCH --cpus-per-task=16
+#SBATCH --job-name=40X
+#SBATCH --nodelist=c003
+#SBATCH --gres=gpu:8
+#SBATCH --ntasks-per-node=8
+#SBATCH --ntasks=8
+#SBATCH --cpus-per-task=8
 
-source activate MPCN
+source activate RESIN
 
-CUDA_VISIBLE_DEVICES=0,1 srun\
- --ntasks-per-node=2 --mpi=pmi2 python sr_3dunet/train.py \
- -opt options/MPCN_VISoR_NISSL.yml --launcher="slurm" # --auto_resume
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 srun\
+ --ntasks-per-node=8 --mpi=pmi2 python sr_3dunet/train.py \
+ -opt options/MPCN_simulation.yml --launcher="slurm" # --auto_resume
 
-# CUDA_VISIBLE_DEVICES=0,1 srun\
-#  --ntasks-per-node=2 --mpi=pmi2 python sr_3dunet/train.py \
-#  -opt options/MPCN_VISoR_noA2C.yml --launcher="slurm" # --auto_resume
-
-# CUDA_VISIBLE_DEVICES=0,1 srun --ntasks-per-node=2\
-#  --mpi=pmi2 python sr_3dunet/train.py -opt options/MPCN_VISoR_cellbody.yml --launcher="slurm"
+ # MPCN_VISoR_40X
