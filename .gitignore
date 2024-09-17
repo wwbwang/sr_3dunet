@@ -153,4 +153,4 @@ version.py
 
 *.out
 
-slurm_logs
+BK_folder

@@ -11,19 +11,18 @@ import tifffile
 
 from basicsr.utils import FileClient, get_root_logger, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
-from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_3d_rotated, augment_3d, augment_2d, preprocess, get_projection
-
+from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_3d_rotated, augment_2d, preprocess, get_projection, augment_3d
 
 @DATASET_REGISTRY.register()
-class Single_ims_Dataset(data.Dataset):
+class standard_tif_Dataset(data.Dataset):
 
     def __init__(self, opt):
-        super(Single_ims_Dataset, self).__init__()
+        super(standard_tif_Dataset, self).__init__()
         self.opt = opt
         self.cube_keys = []
         
         self.datasets_cube = opt['datasets_cube']
-        # self.aniso_dimension = opt['aniso_dimension']
+        self.aniso_dimension = opt['aniso_dimension']
         self.iso_dimension = opt['iso_dimension']
         self.gt_size = opt['gt_size']
         self.gt_probs = opt['gt_probs']
@@ -32,7 +31,6 @@ class Single_ims_Dataset(data.Dataset):
         self.min_value = opt['min_value']
         self.max_value = opt['max_value']
         self.percentiles = opt['percentiles']
-        self.aug3dflag = opt['aug3dflag']
         self.logger = get_root_logger()
 
         img_names = os.listdir(self.datasets_cube)
@@ -57,7 +55,6 @@ class Single_ims_Dataset(data.Dataset):
         
         img_cube_name = self.cube_keys[index]
         
-        # FIXME
         img_cube = tifffile.imread(img_cube_name)
         img_cube = np.clip(img_cube, self.min_value, self.max_value)
         img_cube = random_crop_3d(img_cube, self.gt_size)
@@ -65,15 +62,14 @@ class Single_ims_Dataset(data.Dataset):
         
         img_MIP, _, _ = get_projection(img_cube, self.iso_dimension)
         
-        if self.aug3dflag:
-            img_cube = augment_3d(img_cube, self.iso_dimension, 
-                                        self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+        img_cube = augment_3d(img_cube, self.iso_dimension, 
+                                    self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         img_MIP = augment_2d(img_MIP, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
-            
+        
         return {'img_cube': img_cube[None, ].astype(np.float32),
                 'img_MIP': img_MIP[None, ].astype(np.float32),
                 'img_name': ''}
     
     def __len__(self):
-        return len(self.MIP_keys)
+        return len(self.cube_keys)
 

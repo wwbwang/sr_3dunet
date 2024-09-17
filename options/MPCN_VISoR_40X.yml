@@ -43,7 +43,7 @@ network_g_A:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ # can be None
+  norm_type: ~ 
   dim: 3
 
 network_g_B:
@@ -51,42 +51,42 @@ network_g_B:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ # can be None
+  norm_type: ~ 
   dim: 3
 
 network_d_anisoproj:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ # 'batch' # can be None
+  norm_type: ~ 
   dim: 2
 
 network_d_isoproj:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ # 'batch' # can be None
+  norm_type: ~ 
   dim: 2
 
 network_d_A2C:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ # 'batch' # can be None
+  norm_type: ~ 
   dim: 3
 
 network_d_recA1:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ # 'batch' # can be None
+  norm_type: ~ 
   dim: 3
 
 network_d_recA2:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ # 'batch' # can be None
+  norm_type: ~ 
   dim: 3
 
 # path
@@ -148,7 +148,7 @@ train:
     gan_type: lsgan
     real_label_val: 1.0
     fake_label_val: 0.0
-    loss_weight: !!float 1.0    # 0.1??? # TODO
+    loss_weight: !!float 1.0 
   cycle_opt:
     type: L1Loss
     loss_weight: 10.0
@@ -174,7 +174,7 @@ train:
 
 # logging settings
 logger:
-  print_freq: 200
+  print_freq: 10
   save_checkpoint_freq: !!float 2000
   use_tb_logger: true
   wandb:
@@ -184,6 +184,6 @@ logger:
 # dist training settings
 dist_params:
   backend: nccl
-  port: 29501
+  port: 29500
 
 find_unused_parameters: true

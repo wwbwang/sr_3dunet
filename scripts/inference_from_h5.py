@@ -3,7 +3,6 @@ import numpy as np
 import os
 import time
 import torch
-import tifffile
 import h5py
 import math
 from os import path as osp
@@ -11,7 +10,6 @@ from tqdm import tqdm
 from functools import partial
 
 from sr_3dunet.utils.data_utils import preprocess, postprocess
-from sr_3dunet.utils.inference_big_tif import handle_bigtif, extend_block
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def get_inference_model(args, device) -> UNet_3d_Generator:
