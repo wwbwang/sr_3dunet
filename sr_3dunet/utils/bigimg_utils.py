@@ -4,7 +4,7 @@ import torch.nn.functional as F
 from sr_3dunet.utils.data_utils import preprocess, postprocess
 
 '''
-保证传入模型的图片是piece_mod_size的整数倍
+保证传入模型的图片是可被整数倍处理
 '''  
 def extend_block(img, piece_size, overlap, dim=3):
     def extend_block_(img):
@@ -53,19 +53,14 @@ def extend_block(img, piece_size, overlap, dim=3):
         return extend_block_(img)
 
 
-"""
-平滑操作，避免大图像边缘不一致
-"""
-def handle_bigtif(model, piece_size, overlap, percentiles, dataset_mean, device, img):
+def handle_bigtif_with_norm(model, piece_size, overlap, percentiles, dataset_mean, device, img):
     '''
     img: (b, c, h, w, d)
     '''
     h, w, d = img.shape
     img = np.clip(img, 0, 65535)
-    origin_shape = img.shape
     
     img = extend_block(img, piece_size, overlap)
-    # img_out = torch.zeros(img.shape)
     img_out = np.zeros(img.shape)
     
     h_now, w_now, d_now = img_out.shape
@@ -100,8 +95,6 @@ def handle_bigtif(model, piece_size, overlap, percentiles, dataset_mean, device,
                 
                 img_out[start_h+h_cutleft:end_h-h_cutright, start_w+w_cutleft:end_w-w_cutright, start_d+d_cutleft:end_d-d_cutright] = img_tmp
                 
-                # img_out = img_out # [0:final_size, 0:final_size, 0:final_size]
-                
                 if end_d==d_now:
                     break
             if end_w==w_now:
@@ -125,7 +118,7 @@ def handle_smalltif(model, piece_size, overlap, percentiles, dataset_mean, devic
     img_out = postprocess(img_out, min_value, max_value, dataset_mean)
     return img_out[:h,:w,:d]
     
-def handle_bigtif_bk(model, piece_size, overlap, img):
+def handle_bigtif(model, piece_size, overlap, img):
     '''
     img: (b, c, h, w, d)
     '''
@@ -163,4 +156,4 @@ def handle_bigtif_bk(model, piece_size, overlap, img):
                 break
         if end_h==h_now:
             break
-    return img_out[:,:,:h,:w,:d]                                
+    return img_out[:,:,:h,:w,:d]

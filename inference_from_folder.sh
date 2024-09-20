@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# TODO num_io_consumer half 
-
 # Input: Path to directory containing TIFF files
 # Output: Path to directory containing output TIFF files, may not exist
 # model_path:

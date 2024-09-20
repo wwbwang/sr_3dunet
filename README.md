@@ -14,6 +14,7 @@ Based on BasicSR.
 ## Web Demo and API
 
 [![Replicate](https://replicate.com/cjwbw/animesr/badge)]() 
+*coming soon*
 
 ## Video Demos
 
@@ -32,7 +33,7 @@ Based on BasicSR.
     git clone https://github.com/wwbwang/sr_3dunet
     cd sr_3dunet
     ```
-2. Install dependent packages and RESIN.
+2. Install the dependent packages and RESIN.
 
     ```bash
     # Install dependent packages
@@ -49,7 +50,11 @@ Based on BasicSR.
     git checkout RESIN
     ```
 
-## ⚡ **Quick Inference**
+## ⚡ **Inference**
+
+We provided 3 ways to inference images, include inference **tif files in a given folder_path**, **tif files in a given folder_path**, **tif files in a given folder_path**:
+
+讲清楚区别在于分开的原因在于norm方式
 
 ```bash
 # inference tif files in folder
@@ -58,6 +63,8 @@ bash inference_from_folder.sh
 # inference a single h5 file
 bash inference_from_h5.sh
 ```
+
+We also supply a simple scripts for you to quickly inference your 
 
 ## 💻 Training
 

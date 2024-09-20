@@ -4,14 +4,13 @@ import os
 import time
 import torch
 import tifffile
-import h5py
 import math
 from os import path as osp
 from tqdm import tqdm
 from functools import partial
 
 from sr_3dunet.utils.data_utils import preprocess, postprocess
-from sr_3dunet.utils.inference_big_tif import handle_bigtif, extend_block
+from sr_3dunet.utils.bigimg_utils import handle_bigtif, extend_block
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def get_inference_model(args, device) -> UNet_3d_Generator:
@@ -51,8 +50,7 @@ def main():
     model = get_inference_model(args, device)
     print("Model size: {:.5f}M".format(sum(p.numel() for p in model.parameters())*4/1048576))
     print("Model parameters: {}".format(sum(p.numel() for p in model.parameters())))
-
-    percentiles=[0, 0.9999] # [0, 0.9999] # [0.01,0.999999] # [0.01, 0.9985]
+    percentiles=[0, 1]
     dataset_mean=0
     
     os.makedirs(args.output, exist_ok=True)

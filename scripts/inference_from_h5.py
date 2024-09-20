@@ -7,7 +7,6 @@ import h5py
 import math
 from os import path as osp
 from tqdm import tqdm
-from functools import partial
 
 from sr_3dunet.utils.data_utils import preprocess, postprocess
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
@@ -28,17 +27,13 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
     model.eval()
     model = model.to(device)
 
-    return model.half() if args.half else model
+    return model
 
 @torch.no_grad()
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', type=str, default='inputs', help='input test image folder or video path')
     parser.add_argument('-o', '--output', type=str, default='results', help='save image/video path')
-    parser.add_argument(
-        '--expname', type=str, default='MPCN', help='A unique name to identify your current inference')
-    parser.add_argument('--half', action='store_true', help='use half precision to inference')
-    parser.add_argument('--num_io_consumer', type=int, default=3, help='number of IO consumer')
     parser.add_argument('--model_path', type=str, help='model_path')
     parser.add_argument('--piece_size', type=int, default=64, help='piece_size')
     parser.add_argument('--piece_overlap', type=int, default=16, help='piece_overlap')

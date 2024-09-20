@@ -1,59 +1,30 @@
 #!/bin/bash
+
+# -i: The folder path containing your test TIFF files.
+# -o: The folder path for the model's output TIFF files; this folder may not already exist.
+# --model_path: The path to your Restoration model file (.pth).
+# --model_back_path: The path to the simulated degradation model file obtained through cycle-consistency training, which aids in visualizing more training results.
+# --piece_flag: Set to True if you wants to processing large TIFF files by splitting them into smaller segments before inference.
+# --piece_size: Applicable when "--piece_flag" is enabled, defines the dimensions of the smaller TIFF segments.
+# --piece_overlap: Applicable when "--piece_flag" is enabled, indicates the overlap area between adjacent smaller TIFF segments.
+# --remove_size: The number of pixels to be trimmed from the outermost edge.
+# --rotated_flag: Set to True if your model expects horizontal data but the test data contains oblique angles (e.g., in VISoR).
+
 branch_names=("RESIN_concat_40X")
 iters=("110000")
-
-# iters=()
-# for ((i=20000; i<=160000; i+=20000))
-# do
-#     iters+=("$(echo $i)")
-# done
 
 for branch_name in "${branch_names[@]}"
 do
     for iter in "${iters[@]}"
     do 
-        CUDA_VISIBLE_DEVICES=0 python scripts/inference_bk.py \
-            --expname "${branch_name}_net_g_${iter}" --num_io_consumer 1\
+        CUDA_VISIBLE_DEVICES=0 python scripts/inference_debug.py \
             -i /share/home/wangwb/workspace/sr_3dunet/datasets/40X/val_datasets\
             -o /share/home/wangwb/workspace/sr_3dunet/results/${branch_name}_net_g_${iter}\
             --model_path /share/home/wangwb/workspace/sr_3dunet/experiments/${branch_name}/models/net_g_A_${iter}.pth\
             --model_back_path /share/home/wangwb/workspace/sr_3dunet/experiments/${branch_name}/models/net_g_B_${iter}.pth\
-            --piece_flag True --piece_size 64 --piece_overlap 16 --piece_mod_size 16 --remove_size 4 --rotated_flag True
+            --piece_flag True --piece_size 64 --piece_overlap 16 --remove_size 4 --rotated_flag True
     done
 done
 
-    # _rotated
-    # RESIN_simulation_recurrent_d5
-    # RESIN_concat_40X
-
-    # neuron 
-    # !!saveMPCN_VISoR_oldbaseline_256
-    # !!saveMPCN_VISoR_NISSL
-    # MPCN_VISoR_NISSL_percentiles01_sqrt_absborm
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/Monkey_Brain/val_datasets
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/NISSL/val_standard_datasets
-
-    # NISSL
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/Monkey_Brain/skels_rm009
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/Mouse_Brain/val_datasets
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/bigtif
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/origin_blocks
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/test_tifs
-    # /share/home/wangwb/workspace/sr_3dunet/datasets/rotated_LGN-V1-ROI/rotated_datasets
 
 
-# # 从命令行获取参数
-# while [[ $# -gt 0 ]]; do
-#     key="$1"
-#     case $key in
-#         --iter)
-#             iter="$2"
-#             shift
-#             shift
-#             ;;
-#         *)
-#             echo "Unknown option: $key"
-#             exit 1
-#             ;;
-#     esac
-# done

@@ -1,21 +1,15 @@
 import argparse
-import cv2
-import glob
 import numpy as np
 import os
-import psutil
-import queue
-import threading
 import time
 import torch
-import sys
 import tifffile
 from os import path as osp
 from tqdm import tqdm
 from functools import partial
 
-from sr_3dunet.utils.data_utils import preprocess, postprocess, get_rotated_img, get_anti_rotated_img, str2bool
-from sr_3dunet.utils.inference_big_tif import handle_bigtif_bk as handle_bigtif, handle_smalltif
+from sr_3dunet.utils.data_utils import preprocess, postprocess, str2bool
+from sr_3dunet.utils.bigimg_utils import handle_bigtif, handle_smalltif
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def get_inference_model(args, device) -> UNet_3d_Generator:
@@ -40,11 +34,8 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-i', '--input', type=str, default='inputs', help='input test image folder or video path')
-    parser.add_argument('-o', '--output', type=str, default='results', help='save image/video path')
-    parser.add_argument(
-        '--expname', type=str, default='MPCN', help='A unique name to identify your current inference')
-    parser.add_argument('--half', action='store_true', help='use half precision to inference')
-    parser.add_argument('--num_io_consumer', type=int, default=3, help='number of IO consumer')
+    parser.add_argument('-o', '--output', type=str, default='results', help='save image/video path')        
+
     parser.add_argument('--model_path', type=str, help='model_path')
     parser.add_argument('--piece_flag', type=str2bool, default=False, help='piece_flag')
     parser.add_argument('--piece_size', type=int, default=128, help='piece_size')
@@ -55,8 +46,7 @@ def main():
     model = get_inference_model(args, device)
     print("Model size: {:.5f}M".format(sum(p.numel() for p in model.parameters())*4/1048576))
     print("Model parameters: {}".format(sum(p.numel() for p in model.parameters())))
-    
-    percentiles=[0, 0.9999]
+    percentiles=[0, 1]
     dataset_mean=0
     
     if args.piece_flag:
