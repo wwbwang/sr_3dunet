@@ -1,6 +1,6 @@
 # general settings
-name: RESIN_concat_40X_clipax
-model_type: RESIN_Aux_Model
+name: RESIN_simulation_recurrent_d5
+model_type: MPCN_3projD_Model
 num_gpu: auto  # set num_gpu: 0 for cpu mode
 manual_seed: 0
 
@@ -13,13 +13,11 @@ manual_seed: 0
 datasets:
   train:
     name: rotated_blocks
-    type: Paired_Tif_Aux_Dataset
-    datasets_cube: /home/wangwb/data/40X/40x20x03px0p26ax_128_newdatasets
-    datasets_aux_cube: /home/wangwb/data/40X/40x20x03px0p26ax_rotated128_newdatasets
+    type: standard_tif_Dataset
+    datasets_cube: /home/wangwb/data/simulation/blurred_split_noised
     test_mode: False
     mean: 0 # 0.254 # 0.1535 # 0.0728 # 0.141
     percentiles: [0, 1] # [0.01, 0.9999]
-    aug3dflag: False
     min_value: 0
     max_value: 65535
     io_backend:
@@ -45,7 +43,7 @@ network_g_A:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ 
+  norm_type: ~ # can be None
   dim: 3
 
 network_g_B:
@@ -53,42 +51,42 @@ network_g_B:
   in_channels: 1
   out_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ 
+  norm_type: ~ # can be None
   dim: 3
 
 network_d_anisoproj:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ 
+  norm_type: ~ # 'batch' # can be None
   dim: 2
 
 network_d_isoproj:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ 
+  norm_type: ~ # 'batch' # can be None
   dim: 2
 
 network_d_A2C:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ 
+  norm_type: ~ # 'batch' # can be None
   dim: 3
 
 network_d_recA1:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ 
+  norm_type: ~ # 'batch' # can be None
   dim: 3
 
 network_d_recA2:
   type: CubeDiscriminator
   in_channels: 1
   features: [64, 128, 256]
-  norm_type: ~ 
+  norm_type: ~ # 'batch' # can be None
   dim: 3
 
 # path
@@ -112,13 +110,13 @@ train:
   ema_decay: 0 # 0.999
   optim_g:
     type: Adam
-    lr: !!float 1e-4
+    lr: !!float 1e-5
     weight_decay: 0
     betas: [0.9, 0.99]
   lr_flow: !!float 1e-5
   optim_d:
     type: Adam
-    lr: !!float 1e-4
+    lr: !!float 1e-5
     weight_decay: 0
     betas: [0.9, 0.99]
 
@@ -127,7 +125,7 @@ train:
     milestones: [300000]
     gamma: 0.5
 
-  total_iter: 3000000
+  total_iter: 300000
   warmup_iter: -1  # no warm up
   fix_flow: ~
 
@@ -150,7 +148,7 @@ train:
     gan_type: lsgan
     real_label_val: 1.0
     fake_label_val: 0.0
-    loss_weight: !!float 1.0 
+    loss_weight: !!float 1.0    # 0.1??? # TODO
   cycle_opt:
     type: L1Loss
     loss_weight: 10.0
@@ -166,7 +164,7 @@ train:
     dim: 3
 
   net_d_iters: 1
-  net_g_iters: 1
+  net_g_iters: 1  # simulation的g太弱了，要多迭代
   net_d_init_iters: 0
 
 # validation settings
@@ -176,7 +174,7 @@ train:
 
 # logging settings
 logger:
-  print_freq: 10
+  print_freq: 200
   save_checkpoint_freq: !!float 2000
   use_tb_logger: true
   wandb:

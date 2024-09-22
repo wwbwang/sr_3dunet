@@ -10,7 +10,6 @@ from tqdm import tqdm
 from functools import partial
 
 from sr_3dunet.utils.data_utils import preprocess, postprocess
-from sr_3dunet.utils.bigimg_utils import handle_bigtif, extend_block
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 
 def get_inference_model(args, device) -> UNet_3d_Generator:
@@ -117,27 +116,5 @@ def main():
                     pbar1.update(1)
                     
         tifffile.imwrite(os.path.join(args.output, "output" + img_path), img_out.astype(np.uint16))
-        # tifffile.imwrite(os.path.join(args.output, "output" + img_path), img_out[2:-2, 2:-2, 2:-2])
-                    
-
-        # img, min_value, max_value = preprocess(img, percentiles, dataset_mean)
-            
-        # img = img.astype(np.float32)[None, None,]
-        # img = torch.from_numpy(img).to(device)     # to float32
-
-        # start_time = time.time()
-        # torch.cuda.synchronize()
-        # out_img = model(img)
-        # torch.cuda.synchronize()
-        # end_time = time.time()
-        # print("avg-time_model:", (end_time-start_time)*1000, "ms,", "N, C, H, W, D:", origin_shape)
-
-        # out_img = out_img[0,0].cpu().numpy() # [0:final_size, 0:final_size, 0:final_size]
-        
-        # tifffile.imwrite(os.path.join(args.output, "output" + img_path),
-        #                 postprocess(out_img, min_value, max_value, dataset_mean))
-        
-        # pbar1.update(1)
-        
 if __name__ == '__main__':
     main()

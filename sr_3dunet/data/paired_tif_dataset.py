@@ -14,10 +14,10 @@ from basicsr.utils.registry import DATASET_REGISTRY
 from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_3d_rotated, augment_2d, preprocess, get_projection, augment_3d
 
 @DATASET_REGISTRY.register()
-class standard_tif_Dataset(data.Dataset):
+class Paired_Tif_Dataset(data.Dataset):
 
     def __init__(self, opt):
-        super(standard_tif_Dataset, self).__init__()
+        super(Paired_Tif_Dataset, self).__init__()
         self.opt = opt
         self.cube_keys = []
         

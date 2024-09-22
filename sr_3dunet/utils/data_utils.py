@@ -165,7 +165,7 @@ def augment_2d(imgs, hflip=True, vflip=True, rotation=True, return_status=False)
     else:
         return imgs
     
-def preprocess(img, percentiles, dataset_mean):  # 再加一个数量级就获得和原图差不多的视觉效果
+def preprocess(img, percentiles, dataset_mean):
     flattened_arr = np.sort(img.flatten())
     clip_low = int(percentiles[0] * len(flattened_arr))
     clip_high = int(percentiles[1] * len(flattened_arr))
@@ -242,7 +242,7 @@ def extend_block_utils(img, step_size=16, dim=3):
     else:
         return extend_block_(img)
 
-def get_rotated_img(raw_img, device=None, aniso_dimension=-2):
+def get_rotated_img(raw_img, device=None, aniso_dimension=-2):      # FIXME
     raw_img = raw_img.astype(np.float32)
     list_img = []
     for i in range(raw_img.shape[aniso_dimension]):
@@ -322,39 +322,6 @@ def crop_block(img, step_size=16, dim=3):
         img = img[0:crop_shape, 0:crop_shape]
     
     return img
-
-# !!! Just used in standard VISoR data
-# Aniso_dimension is -2 in source VISoR data
-# After rotation the isotropic dimension is -1, and the blur direction is horizontal in -2 and -3 (viewed in imagej)
-# def rotate_block(raw_img, aniso_dimension=-2):
-#     iso_dimension = -1
-#     height, width, depth = raw_img.shape
-#     max_size = max(height, depth)
-    
-#     desired_height = int(max_size * 1.414213) // 2 * 2
-#     desired_depth = int(max_size * 1.414213) // 2 * 2
-    
-#     border_height = (desired_height - height) // 2
-#     border_depth = (desired_depth - depth) // 2
-    
-#     raw_img = raw_img.transpose(1, 0, 2)
-    
-#     rotation_matrix = cv2.getRotationMatrix2D((desired_height // 2, desired_depth // 2), 45, 1)
-#     rotation_matrix_inv = cv2.getRotationMatrix2D((desired_height // 2, desired_depth // 2), -45, 1)
-    
-#     extend_raw_img = np.pad(raw_img, ((0, 0), (border_height, border_height), (border_depth, border_depth)), mode='constant')
-#     rotated_raw_img = np.zeros_like(extend_raw_img)
-#     for i in range(width):
-#         rotated_raw_img[i] = cv2.warpAffine(extend_raw_img[i], rotation_matrix, (desired_depth, desired_height))
-    
-#     # out_img = np.zeros_like(rotated_raw_img)
-#     # for i in range(width):
-#     #     out_img[i] = cv2.warpAffine(xz_img[i], rotation_matrix_inv, (desired_depth, desired_height))
-        
-#     # out_img = out_img[:, border_height:-border_height, border_depth:-border_depth]
-#     # out_img = out_img.transpose(1, 0, 2)
-    
-#     return rotated_raw_img # , iso_dimension
 
 def merge_img(img_list):
     matrix_array = np.array(img_list)

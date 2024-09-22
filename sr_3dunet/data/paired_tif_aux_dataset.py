@@ -11,20 +11,20 @@ import tifffile
 
 from basicsr.utils import FileClient, get_root_logger, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
-from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_3d_rotated, augment_2d, preprocess, get_projection, augment_3d
+from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_3d_aux, augment_2d, preprocess, get_projection, augment_3d
 
 
 @DATASET_REGISTRY.register()
-class Old_Paired_tif_Dataset(data.Dataset):
+class Paired_Tif_Aux_Dataset(data.Dataset):
 
     def __init__(self, opt):
-        super(Old_Paired_tif_Dataset, self).__init__()
+        super(Paired_Tif_Aux_Dataset, self).__init__()
         self.opt = opt
         self.cube_keys = []
-        self.MIP_keys = []
+        self.aux_cube_keys = []
         
         self.datasets_cube = opt['datasets_cube']
-        self.datasets_MIP = opt['datasets_MIP']
+        self.datasets_aux_cube = opt['datasets_aux_cube']
         self.aniso_dimension = opt['aniso_dimension']
         self.iso_dimension = opt['iso_dimension']
         self.gt_size = opt['gt_size']
@@ -37,10 +37,10 @@ class Old_Paired_tif_Dataset(data.Dataset):
         self.aug3dflag = opt['aug3dflag']
         self.logger = get_root_logger()
 
-        img_names = os.listdir(self.datasets_MIP)
+        img_names = os.listdir(self.datasets_aux_cube)
         for img_name in img_names:
             self.cube_keys.append(osp.join(self.datasets_cube, img_name))
-            self.MIP_keys.append(osp.join(self.datasets_MIP, img_name))
+            self.aux_cube_keys.append(osp.join(self.datasets_aux_cube, img_name))
 
         # file client (io backend)
         self.file_client = None
@@ -59,24 +59,24 @@ class Old_Paired_tif_Dataset(data.Dataset):
             self.file_client = FileClient(self.io_backend_opt.pop('type'), **self.io_backend_opt)
         
         img_cube_name = self.cube_keys[index]
-        img_MIP_name = self.MIP_keys[index]
+        img_aux_cube_name = self.aux_cube_keys[index]
         
         img_cube = tifffile.imread(img_cube_name)
         img_cube = np.clip(img_cube, self.min_value, self.max_value)
         img_cube = random_crop_3d(img_cube, self.gt_size)
-        img_cube, min_value, max_value = preprocess(img_cube, self.percentiles, self.mean)
+        img_cube, _, _ = preprocess(img_cube, self.percentiles, self.mean)
         
-        img_MIP_cube = tifffile.imread(img_MIP_name)
-        img_MIP_cube = np.clip(img_MIP_cube, self.min_value, self.max_value)
-        img_MIP_cube = random_crop_3d(img_MIP_cube, self.gt_size)
-        img_MIP_cube, _, _ = preprocess(img_MIP_cube, self.percentiles, self.mean)
-        img_MIP, _, _ = get_projection(img_MIP_cube, self.iso_dimension)
+        img_aux_cube = tifffile.imread(img_aux_cube_name)
+        img_aux_cube = np.clip(img_aux_cube, self.min_value, self.max_value)
+        img_aux_cube = random_crop_3d(img_aux_cube, self.gt_size)
+        img_aux_cube, _, _ = preprocess(img_aux_cube, self.percentiles, self.mean)
+        img_MIP, _, _ = get_projection(img_aux_cube, self.iso_dimension)
         # start_index = random.randint(0, img_MIP_cube.shape[self.iso_dimension]-self.gt_size-1)        
         # img_MIP, _, _ = get_projection(img_MIP_cube[:,:,start_index:start_index+self.gt_size], self.iso_dimension)
         # img_MIP = random_crop_2d(img_MIP, self.gt_size)
         
         if self.aug3dflag:
-            img_cube = augment_3d_rotated(img_cube, self.aniso_dimension, 
+            img_cube = augment_3d_aux(img_cube, self.aniso_dimension, 
                                         self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         img_MIP = augment_2d(img_MIP, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
@@ -88,4 +88,4 @@ class Old_Paired_tif_Dataset(data.Dataset):
                 'img_name': ''}
     
     def __len__(self):
-        return len(self.MIP_keys)
+        return len(self.aux_cube_keys)

@@ -6,7 +6,6 @@ from tqdm import tqdm
 import numpy as np
 import random
 import itertools
-import tifffile
 
 from basicsr.archs import build_network
 from basicsr.losses import build_loss
@@ -16,13 +15,13 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
-from ..utils.data_utils import get_projection, affine_img_VISoR, affine_img
+from ..utils.data_utils import get_projection, affine_img
 
 @MODEL_REGISTRY.register()
-class MPCN_VISoR_3projD_Model(BaseModel):
+class MPCN_del_rotation_model(BaseModel):
 
     def __init__(self, opt):
-        super(MPCN_VISoR_3projD_Model, self).__init__(opt)
+        super(MPCN_del_rotation_model, self).__init__(opt)
 
         # define network
         self.net_g_A = build_network(opt['network_g_A'])
@@ -30,7 +29,6 @@ class MPCN_VISoR_3projD_Model(BaseModel):
         self.net_g_A = self.model_to_device(self.net_g_A)
         self.net_g_B = self.model_to_device(self.net_g_B)
         # self.print_network(self.net_g)
-        self.backward_flag = True
 
         # load pretrained models
         load_path = self.opt['path'].get('pretrain_network_g_A', None)
@@ -78,11 +76,8 @@ class MPCN_VISoR_3projD_Model(BaseModel):
             return net_d
             
         self.net_d_anisoproj = define_load_network(self.opt['network_d_anisoproj'], 'pretrain_network_d_anisoproj')
-        self.net_d_isoproj0 = define_load_network(self.opt['network_d_isoproj'], 'pretrain_network_d_isoproj')
-        self.net_d_isoproj1 = define_load_network(self.opt['network_d_isoproj'], 'pretrain_network_d_isoproj')
-        self.net_d_A2C = define_load_network(self.opt['network_d_A2C'], 'pretrain_network_d_A2C')
+        self.net_d_isoproj = define_load_network(self.opt['network_d_isoproj'], 'pretrain_network_d_isoproj')
         self.net_d_recA1 = define_load_network(self.opt['network_d_recA1'], 'pretrain_network_d_recA1')
-        self.net_d_recA2 = define_load_network(self.opt['network_d_recA2'], 'pretrain_network_d_recA2')
 
         # define losses
         if train_opt.get('projection_opt'):
@@ -126,60 +121,49 @@ class MPCN_VISoR_3projD_Model(BaseModel):
         self.optimizers.append(self.optimizer_g)
         # optimizer d
         optim_type = train_opt['optim_d'].pop('type')
-        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_anisoproj.parameters(),self.net_d_isoproj0.parameters(),self.net_d_isoproj1.parameters(),self.net_d_A2C.parameters(),self.net_d_recA1.parameters(),self.net_d_recA2.parameters()), **train_opt['optim_d'])
+        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_anisoproj.parameters(),self.net_d_isoproj.parameters(),self.net_d_recA1.parameters()), **train_opt['optim_d'])
         self.optimizers.append(self.optimizer_d)
 
     def feed_data(self, data):
-        self.img_cube = data['img_cube'].to(self.device)
-        # self.img_rotated_cube = data['img_rotated_cube'].to(self.device)
-        self.img_MIP = data['img_MIP'].to(self.device)
+        self.lq = data.to(self.device)
 
     def optimize_parameters(self, current_iter):
         
-        aniso_dimension = self.opt['datasets']['train'].get('aniso_dimension', None)
-        # half_iso_dimension=-1
+        iso_dimension = self.opt['datasets']['train'].get('iso_dimension', None)
         
         # optimize net_g
         for p in self.net_d_anisoproj.parameters():
             p.requires_grad = False
-        for p in self.net_d_isoproj0.parameters():
-            p.requires_grad = False
-        for p in self.net_d_isoproj1.parameters():
+        for p in self.net_d_isoproj.parameters():
             p.requires_grad = False
         for p in self.net_d_recA1.parameters():
             p.requires_grad = False
-        for p in self.net_d_recA2.parameters():
-            p.requires_grad = False
-        for p in self.net_d_A2C.parameters():
-            p.requires_grad = False
 
         self.optimizer_g.zero_grad()
-        self.realA = self.img_cube
+        self.realA = self.lq
         self.fakeB = self.net_g_A(self.realA)
-        self.affine_fakeB, affine_half_iso_dimension, affine_aniso_dimension\
-            = affine_img_VISoR(self.fakeB, aniso_dimension=aniso_dimension, half_iso_dimension=None)
-        half_iso_dimension = affine_aniso_dimension
+        self.affine_fakeB = affine_img(self.fakeB)
         
         self.recA1 = self.net_g_B(self.fakeB)
-        self.fakeC = self.net_g_B(self.affine_fakeB)
-        self.recA2 = self.net_g_B(affine_img_VISoR(self.net_g_A(self.fakeC), aniso_dimension=affine_aniso_dimension, half_iso_dimension=affine_half_iso_dimension)[0])
         
         # get iso and aniso projection arrays
-        input_iso_proj = self.img_MIP
-        
-        output_aniso_proj, output_half_iso_proj0, output_half_iso_proj1 = get_projection(self.fakeB, aniso_dimension)
-        
-        # only use output_aniso_proj, output_half_iso_proj, input_iso_proj
+        input_iso_proj, input_aiso_proj0, input_aiso_proj1 = get_projection(self.realA, iso_dimension)
+        output_iso_proj, output_aiso_proj0, output_aiso_proj1 = get_projection(self.fakeB, iso_dimension)
+        proj_index = random.choice(['0', '1'])
+        match = lambda x: {
+            '0': (input_aiso_proj0, output_aiso_proj0),
+            '1': (input_aiso_proj1, output_aiso_proj1)
+        }.get(x, ('error0', 'error1'))
+        input_aiso_proj, output_aniso_proj = match(proj_index) # random.choice([output_aiso_proj0, output_aiso_proj1])
+
         l_total = 0
         loss_dict = OrderedDict()
         if (current_iter % self.net_d_iters == 0 and current_iter > self.net_d_init_iters):     
             # cycle loss
             if self.cri_cycle:
                 l_cycle1 = self.cri_cycle(self.realA, self.recA1) + self.cri_cycle_ssim(self.realA, self.recA1)
-                l_cycle2 = self.cri_cycle(self.realA, self.recA2) + self.cri_cycle_ssim(self.realA, self.recA2)
-                l_total += l_cycle1 + l_cycle2
+                l_total += l_cycle1
                 loss_dict['l_cycle1'] = l_cycle1
-                loss_dict['l_cycle2'] = l_cycle2
 
             # generator loss
             fakeB_g_anisoproj_pred = self.net_d_anisoproj(output_aniso_proj)
@@ -187,33 +171,17 @@ class MPCN_VISoR_3projD_Model(BaseModel):
             l_total += l_g_B_aniso
             loss_dict['l_g_B_aniso'] = l_g_B_aniso
             
-            fakeB_g_isoproj0_pred = self.net_d_isoproj0(output_half_iso_proj0)
-            l_g_B_iso0 = self.cri_gan(fakeB_g_isoproj0_pred, True, is_disc=False)
-            l_total += l_g_B_iso0
-            loss_dict['l_g_B_iso0'] = l_g_B_iso0
-
-            fakeB_g_isoproj1_pred = self.net_d_isoproj1(output_half_iso_proj1)
-            l_g_B_iso1 = self.cri_gan(fakeB_g_isoproj1_pred, True, is_disc=False)
-            l_total += l_g_B_iso1
-            loss_dict['l_g_B_iso1'] = l_g_B_iso1
+            fakeB_g_anisoproj_pred = self.net_d_isoproj(output_iso_proj)
+            l_g_B_iso = self.cri_gan(fakeB_g_anisoproj_pred, True, is_disc=False)
+            l_total += l_g_B_iso
+            loss_dict['l_g_B_iso'] = l_g_B_iso
             
             recA1_g_pred = self.net_d_recA1(self.recA1)
             l_g_recA1 = self.cri_gan(recA1_g_pred, True, is_disc=False)
             l_total += l_g_recA1
             loss_dict['l_g_recA1'] = l_g_recA1
             
-            recA2_g_pred = self.net_d_recA2(self.recA2)
-            l_g_recA2 = self.cri_gan(recA2_g_pred, True, is_disc=False)
-            l_total += l_g_recA2
-            loss_dict['l_g_recA2'] = l_g_recA2
-            
-            fakeC_g_pred = self.net_d_A2C(self.fakeC)
-            l_g_A2C = self.cri_gan(fakeC_g_pred, True, is_disc=False)
-            l_total += l_g_A2C
-            loss_dict['l_g_A2C'] = l_g_A2C
-            
-            if self.backward_flag:
-                l_total.backward()
+            l_total.backward()
             loss_dict['l_total'] = l_total
             
             self.optimizer_g.step()
@@ -222,15 +190,9 @@ class MPCN_VISoR_3projD_Model(BaseModel):
             # optimize net_d
             for p in self.net_d_anisoproj.parameters():
                 p.requires_grad = True
-            for p in self.net_d_isoproj0.parameters():
-                p.requires_grad = True
-            for p in self.net_d_isoproj1.parameters():
+            for p in self.net_d_isoproj.parameters():
                 p.requires_grad = True
             for p in self.net_d_recA1.parameters():
-                p.requires_grad = True
-            for p in self.net_d_recA2.parameters():
-                p.requires_grad = True
-            for p in self.net_d_A2C.parameters():
                 p.requires_grad = True
 
             self.optimizer_d.zero_grad()
@@ -240,78 +202,36 @@ class MPCN_VISoR_3projD_Model(BaseModel):
             realB_d_anisoproj_pred = self.net_d_anisoproj(input_iso_proj)
             l_d_real_B_aniso = self.cri_gan(realB_d_anisoproj_pred, True, is_disc=True)
             loss_dict['l_d_real_B_aniso'] = l_d_real_B_aniso
-            if self.backward_flag:
-                l_d_real_B_aniso.backward()
+            l_d_real_B_aniso.backward()
             
-            realB_d_isoproj0_pred = self.net_d_isoproj0(input_iso_proj)
-            l_d_real_B_iso0 = self.cri_gan(realB_d_isoproj0_pred, True, is_disc=True)
-            loss_dict['l_d_real_B_iso0'] = l_d_real_B_iso0
-            if self.backward_flag:
-                l_d_real_B_iso0.backward()
-
-            realB_d_isoproj1_pred = self.net_d_isoproj1(input_iso_proj)
-            l_d_real_B_iso1 = self.cri_gan(realB_d_isoproj1_pred, True, is_disc=True)
-            loss_dict['l_d_real_B_iso1'] = l_d_real_B_iso1
-            if self.backward_flag:
-                l_d_real_B_iso1.backward()
-            
-            realC_d_pred = self.net_d_A2C(self.realA)   # same as A
-            l_d_real_A2C = self.cri_gan(realC_d_pred, True, is_disc=True)
-            loss_dict['l_d_real_A2C'] = l_d_real_A2C
-            if self.backward_flag:
-                l_d_real_A2C.backward()
+            realB_d_isoproj_pred = self.net_d_isoproj(input_iso_proj)
+            l_d_real_B_iso = self.cri_gan(realB_d_isoproj_pred, True, is_disc=True)
+            loss_dict['l_d_real_B_iso'] = l_d_real_B_iso
+            l_d_real_B_iso.backward()
             
             recA1_d_pred = self.net_d_recA1(self.realA)
             l_d_real_recA1 = self.cri_gan(recA1_d_pred, True, is_disc=True)
             loss_dict['l_d_real_recA1'] = l_d_real_recA1
-            if self.backward_flag:
-                l_d_real_recA1.backward()
-            
-            recA2_d_pred = self.net_d_recA2(self.realA)
-            l_d_real_recA2 = self.cri_gan(recA2_d_pred, True, is_disc=True)
-            loss_dict['l_d_real_recA2'] = l_d_real_recA2
-            if self.backward_flag:
-                l_d_real_recA2.backward()
+            l_d_real_recA1.backward()
             
             # fake
             fakeB_d_anisoproj_pred = self.net_d_anisoproj(output_aniso_proj.detach())
             l_d_fake_B_aniso = self.cri_gan(fakeB_d_anisoproj_pred, False, is_disc=False)
             loss_dict['l_d_fake_B_aniso'] = l_d_fake_B_aniso
-            if self.backward_flag:
-                l_d_fake_B_aniso.backward()
+            l_d_fake_B_aniso.backward()
             
-            fakeB_d_isoproj0_pred = self.net_d_isoproj0(output_half_iso_proj0.detach())
-            l_d_fake_B_iso0 = self.cri_gan(fakeB_d_isoproj0_pred, False, is_disc=False)
-            loss_dict['l_d_fake_B_iso0'] = l_d_fake_B_iso0
-            if self.backward_flag:
-                l_d_fake_B_iso0.backward()
-                
-            fakeB_d_isoproj1_pred = self.net_d_isoproj1(output_half_iso_proj1.detach())
-            l_d_fake_B_iso1 = self.cri_gan(fakeB_d_isoproj1_pred, False, is_disc=False)
-            loss_dict['l_d_fake_B_iso1'] = l_d_fake_B_iso1
-            if self.backward_flag:
-                l_d_fake_B_iso1.backward()
-            
-            fakeC_d_pred = self.net_d_A2C(self.fakeC.detach())
-            l_d_fake_A2C = self.cri_gan(fakeC_d_pred, False, is_disc=False)
-            loss_dict['l_d_fake_A2C'] = l_d_fake_A2C
-            if self.backward_flag:
-                l_d_fake_A2C.backward()
+            fakeB_d_isoproj_pred = self.net_d_isoproj(output_iso_proj.detach())
+            l_d_fake_B_iso = self.cri_gan(fakeB_d_isoproj_pred, False, is_disc=False)
+            loss_dict['l_d_fake_B_iso'] = l_d_fake_B_iso
+            l_d_fake_B_iso.backward()
             
             recA1_d_pred = self.net_d_recA1(self.recA1.detach())
             l_d_fake_recA1 = self.cri_gan(recA1_d_pred, False, is_disc=False)
             loss_dict['l_d_fake_recA1'] = l_d_fake_recA1
-            if self.backward_flag:
-                l_d_fake_recA1.backward()
+            l_d_fake_recA1.backward()
             
-            recA2_d_pred = self.net_d_recA2(self.recA2.detach())
-            l_d_fake_recA2 = self.cri_gan(recA2_d_pred, False, is_disc=False)
-            loss_dict['l_d_fake_recA2'] = l_d_fake_recA2
-            if self.backward_flag:
-                l_d_fake_recA2.backward()
-            
-            l_d_total += l_d_real_B_aniso + l_d_real_B_iso0+ l_d_real_B_iso1 + l_d_real_A2C + l_d_real_recA1 + l_d_real_recA2
-            l_d_total += l_d_fake_B_aniso + l_d_fake_B_iso0+ l_d_fake_B_iso1 + l_d_fake_A2C + l_d_fake_recA1 + l_d_fake_recA2
+            l_d_total += l_d_real_B_aniso + l_d_real_B_iso + l_d_real_recA1
+            l_d_total += l_d_fake_B_aniso + l_d_fake_B_iso + l_d_fake_recA1
             loss_dict['l_d_total'] = l_d_total
             
             self.optimizer_d.step()
@@ -320,37 +240,11 @@ class MPCN_VISoR_3projD_Model(BaseModel):
 
         if self.ema_decay > 0:
             self.model_ema(decay=self.ema_decay)
-        
-    def test(self):
-        if hasattr(self, 'net_g_ema'):
-            self.net_g_ema.eval()
-            with torch.no_grad():
-                self.img_srcube = self.net_g_ema(self.img_cube)
-        else:
-            self.net_g_A.eval()
-            with torch.no_grad():
-                self.img_srcube = self.net_g_A(self.img_cube)
-            self.net_g_A.train()
-       
-    
-    def dist_validation(self, dataloader, current_iter, tb_logger, save_img):
-        if self.opt['rank'] == 0:
-            self.nondist_validation(dataloader, current_iter, tb_logger, save_img)
             
-    def get_current_visuals(self):
-        out_dict = OrderedDict()
-        out_dict['img_MIP'] = self.img_MIP.detach().cpu()
-        out_dict['img_cube'] = self.img_cube.detach().cpu()
-        out_dict['img_srcube'] = self.img_srcube.detach().cpu()
-        return out_dict
-    
     def save(self, epoch, current_iter):
         self.save_network(self.net_g_A, 'net_g_A', current_iter)
         self.save_network(self.net_g_B, 'net_g_B', current_iter)
         self.save_network(self.net_d_anisoproj, 'net_d_anisoproj', current_iter)
-        self.save_network(self.net_d_isoproj0, 'net_d_isoproj0', current_iter)
-        self.save_network(self.net_d_isoproj1, 'net_d_isoproj1', current_iter)
-        self.save_network(self.net_d_A2C, 'net_d_A2C', current_iter)
         self.save_network(self.net_d_recA1, 'net_d_recA1', current_iter)
-        self.save_network(self.net_d_recA2, 'net_d_recA2', current_iter)
+        self.save_network(self.net_d_isoproj, 'net_d_isoproj', current_iter)
         self.save_training_state(epoch, current_iter)
