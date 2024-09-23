@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# -i: Your test h5/ims file's path.
-# -o: Your model\'s output h5/ims file's path.
+# -i, --input: Your test h5/ims file's path.
+# -o, --output: Your model\'s output h5/ims file's path.
 # --model_path: The path of your Restoration model file (.pth).
 # --piece_size: Defines the dimensions of the smaller image segments.
 # --piece_overlap: Indicates the overlap area between adjacent smaller image segments.

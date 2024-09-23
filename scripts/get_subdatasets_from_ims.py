@@ -6,7 +6,7 @@ from tqdm import tqdm
 import math
 import argparse
 
-from sr_3dunet.utils.data_utils import get_rotated_img
+from sr_3dunet.utils.data_utils import get_rotated_img, str2bool
 
 def img_loader(img, start_x, start_y, start_z, size):
     return img[start_x:start_x+size, start_y:start_y+size, start_z:start_z+size]
@@ -34,7 +34,7 @@ if __name__ == '__main__':
     parser.add_argument('--input_folder', type=str, default="/share/data/VISoR_Reconstruction/SIAT_ION/LiuCiRong/20230910_CJ004/CJ4-1um-ROI1")
     parser.add_argument('--output_folder', type=str, default="/share/home/wangwb/workspace/sr_3dunet/datasets/NISSL")
     parser.add_argument('--input_ims_name ', type=str, default="CJ4ROI1.ims")
-    parser.add_argument("--rotated_flag", action= "store_true")
+    parser.add_argument('--rotated_flag', type=str2bool, default=False)
     
     parser.add_argument('--x_floor', type=int, default=0)
     parser.add_argument('--x_upper', type=int, default=8700)

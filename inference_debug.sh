@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# -i: The folder path containing your test TIFF files.
-# -o: The folder path for the model's output TIFF files; this folder may not already exist.
+# -i, --input: The folder path containing your test TIFF files.
+# -o, --output: The folder path for the model's output TIFF files; this folder may not already exist.
 # --model_path: The path of your Restoration model file (.pth).
 # --model_back_path: The path of the simulated degradation model file obtained through cycle-consistency training, which aids in visualizing more training results.
 # --piece_flag: Set to True if you wants to processing large TIFF files by splitting them into smaller segments before inference.

@@ -5,7 +5,7 @@ from tqdm import tqdm
 import math
 import argparse
 
-from sr_3dunet.utils.data_utils import  get_rotated_img
+from sr_3dunet.utils.data_utils import  get_rotated_img, str2bool
 
 def img_loader(img, start_x, start_y, start_z, size):
     return img[start_x:start_x+size, start_y:start_y+size, start_z:start_z+size]
@@ -35,7 +35,7 @@ if __name__ == '__main__':
     parser.add_argument('--output_folder', type=str, default="/share/home/wangwb/workspace/sr_3dunet/datasets/40X")
     parser.add_argument('--input_tif_name ', type=str, default="40x20x030p26sp1.tif")
     parser.add_argument('--crop_size ', type=int, default=50)
-    parser.add_argument("--rotated_flag", action= "store_true")
+    parser.add_argument('--rotated_flag', type=str2bool, default=False)
     
     args = parser.parse_args()
     args.stride = args.size//2
