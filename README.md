@@ -5,9 +5,10 @@
 > [Author](https://github.com)
 
 ### 🚩 Updates
-* **2024.9.23**: 【修改说明】代码整改完毕，README待上传，bug待修理
-* **2024.9.24**: 【修改说明】README已上传，bug待修理
+* **2024.9.24**: 【修改说明】补充README中的训练可视化
 * **2024.9.24**: 【修改说明】bug已修复
+* **2024.9.24**: 【修改说明】README已上传，bug待修理
+* **2024.9.23**: 【修改说明】代码整改完毕，README待上传，bug待修理
 
 
 ## Web Demo and API
@@ -82,6 +83,16 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 srun\
 --ntasks-per-node=4 --mpi=pmi2 python sr_3dunet/train.py \
 -opt options/RESIN.yml --launcher="slurm" # --auto_resume
 ```
+
+### **Training Visualization**
+
+1. You can visualize your training loss using `Tensorboard` as follows:
+    ```bash
+    tensorboard --logdir ./tb_logger
+    ```
+
+2. You can use `wandb` to visualize training status as well. About wandb, please refer to the [Documentation of BasicSR](https://github.com/XPixelGroup/BasicSR-docs).
+
 
 ## ⚡ **Inference**
 
