@@ -15,7 +15,7 @@ from basicsr.utils.registry import MODEL_REGISTRY
 from basicsr.models.srgan_model import SRGANModel
 from basicsr.models.base_model import BaseModel
 
-from ..utils.data_utils import get_projection
+from ..utils.data_utils import get_projection, affine_img
 
 @MODEL_REGISTRY.register()
 class RESIN_Model(BaseModel):

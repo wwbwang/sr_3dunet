@@ -1,7 +1,7 @@
 #!/bin/bash
 
 #SBATCH --job-name=40X
-#SBATCH --nodelist=c003
+#SBATCH --nodelist=c002
 #SBATCH --gres=gpu:8
 #SBATCH --ntasks-per-node=8
 #SBATCH --ntasks=8

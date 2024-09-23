@@ -11,7 +11,7 @@ import tifffile
 
 from basicsr.utils import FileClient, get_root_logger, imfrombytes, img2tensor
 from basicsr.utils.registry import DATASET_REGISTRY
-from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_3d_aux, augment_2d, preprocess, get_projection, augment_3d
+from ..utils.data_utils import random_crop_3d, random_crop_2d, augment_2d, preprocess, get_projection, augment_3d
 
 
 @DATASET_REGISTRY.register()
@@ -71,13 +71,10 @@ class Paired_Tif_Aux_Dataset(data.Dataset):
         img_aux_cube = random_crop_3d(img_aux_cube, self.gt_size)
         img_aux_cube, _, _ = preprocess(img_aux_cube, self.percentiles, self.mean)
         img_MIP, _, _ = get_projection(img_aux_cube, self.iso_dimension)
-        # start_index = random.randint(0, img_MIP_cube.shape[self.iso_dimension]-self.gt_size-1)        
-        # img_MIP, _, _ = get_projection(img_MIP_cube[:,:,start_index:start_index+self.gt_size], self.iso_dimension)
-        # img_MIP = random_crop_2d(img_MIP, self.gt_size)
         
-        if self.aug3dflag:
-            img_cube = augment_3d_aux(img_cube, self.aniso_dimension, 
-                                        self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
+        # if self.aug3dflag:
+        #     img_cube = augment_3d_aux(img_cube, self.aniso_dimension, 
+        #                                 self.opt['use_flip'], self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         img_MIP = augment_2d(img_MIP, self.opt['use_flip'], self.opt['use_flip'], self.opt['use_rot'])
         
         # img_MIP = (img_MIP-min_value)/(max_value-min_value)
