@@ -198,6 +198,27 @@ def get_projection(img, iso_dimension):
         img_aniso1 = torch.max(img, dim=list_dimensions[1]).values
     return img_iso, img_aniso0, img_aniso1
 
+def get_45d_projection(img, iso_dimension):
+    img_tensor = torch.from_numpy(img)[None, None].cuda()
+    angel = -45
+    angel = math.radians(angel)
+    theta = torch.tensor(
+                [[math.cos(angel), 0, math.sin(angel), 0],
+                [0, 1, 0, 0],
+                [-math.sin(angel), 0, math.cos(angel), 0]], 
+                dtype=torch.float).cuda()
+    size = img.shape[-1]
+    grid = torch.nn.functional.affine_grid(theta.unsqueeze(0), (1,1,size,size,size), align_corners=False).cuda()
+    img_affine_tensor = torch.nn.functional.grid_sample(img_tensor, grid=grid, align_corners=False)
+    img_affine = img_affine_tensor[0,0].cpu().numpy()
+
+    list_dimensions = [-1, -2, -3]
+    list_dimensions.remove(iso_dimension)
+    img_iso = np.max(img_affine, axis=iso_dimension)
+    img_aniso0 = np.max(img_affine, axis=list_dimensions[0])
+    img_aniso1 = np.max(img_affine, axis=list_dimensions[1])
+    return img_iso, img_aniso0, img_aniso1
+
 def affine_img(img, iso_dimension=-1, aniso_dimension=None):
     if aniso_dimension is None:
         list_dimensions = [-1, -2, -3]

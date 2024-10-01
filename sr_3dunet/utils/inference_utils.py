@@ -8,7 +8,7 @@ from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
 def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
     # set up model
-    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=[64, 128, 256], norm_type=None, dim=3)
+    model = UNet_3d_Generator(in_channels=1, out_channels=1, features=args.features, norm_type=None, dim=3)
 
     model_path = args.model_path
     assert os.path.isfile(model_path), \
@@ -17,7 +17,9 @@ def get_inference_model(args, device) -> UNet_3d_Generator:
 
     # load checkpoint
     loadnet = torch.load(model_path)
+    # print(loadnet.keys())
     model.load_state_dict(loadnet['params'], strict=True)
+    # model.load_state_dict(loadnet, strict=True)
     model.eval()
     model = model.to(device)
 
@@ -126,7 +128,7 @@ def handle_bigtif(model, piece_size, overlap, rotated_flag, percentiles, dataset
     '''
     h, w, d = img.shape
     origin_shape = img.shape
-    img_out = torch.zeros_like(img)
+    img_out = np.zeros_like(img)
     
     h_now, w_now, d_now = img_out.shape
     
@@ -146,11 +148,13 @@ def handle_bigtif(model, piece_size, overlap, rotated_flag, percentiles, dataset
                 w_cutright = 0 if end_w==w_now else overlap//2
                 d_cutright = 0 if end_d==d_now else overlap//2
                 
-                img_tmp = img[:, :, start_h:end_h, start_w:end_w, start_d:end_d]
+                # img_tmp = img[:, :, start_h:end_h, start_w:end_w, start_d:end_d]
+                img_tmp = img[start_h:end_h, start_w:end_w, start_d:end_d]
                 img_tmp, min_value, max_value = preprocess(img_tmp, percentiles, dataset_mean)
                 if rotated_flag:
                     img_tmp = get_rotated_img(img_tmp, device)
                 img_tmp = extend_block(img_tmp, piece_size, overlap)
+                img_tmp = torch.from_numpy(img_tmp)[None,None].to(device)
                 img_out = model(img_tmp)[0, 0].cpu().numpy()
                 if rotated_flag:
                     img_out = get_anti_rotated_img(img_out, origin_shape)

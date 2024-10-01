@@ -21,6 +21,7 @@ def main():
     parser.add_argument('--piece_size', type=int, default=128, help='Applicable when "--piece_flag" is enabled, defines the dimensions of the smaller TIFF segments.')
     parser.add_argument('--piece_overlap', type=int, default=16, help='Applicable when "--piece_flag" is enabled, indicates the overlap area between adjacent smaller TIFF segments.')
     parser.add_argument('--rotated_flag', type=str2bool, default=False, help='Set to True if your model expects horizontal data but the test data contains oblique angles (e.g., in VISoR).')
+    parser.add_argument('--features', type=int, nargs='+', default=[64,128,256], help='features')
     args = parser.parse_args()
     
     percentiles=[0, 1]
@@ -58,7 +59,7 @@ def main():
 
         
         tifffile.imwrite(os.path.join(args.output, "output" + img_path),
-                        out_img.astype(np.uint16))
+                        out_img)
         pbar1.update(1)
 
 if __name__ == '__main__':
