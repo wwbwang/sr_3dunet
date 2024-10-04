@@ -1,0 +1,27 @@
+# common
+iso_dim: -1
+aniso_dim: -2
+angel: -45
+
+# model
+in_channels: 1
+out_channels: 1
+features_G: [32,64,128]
+features_D: [64,128,256]
+norm_type: null
+
+# data
+data: 'data/RESIN_datasets/neuron/fg_blocks'
+data_norm_type: 'abs'
+augment: True
+
+# loss
+lambda_GAN: 1.
+lambda_Cycle: 10.
+lambda_SSIM: 1.
+G_train_it: 1
+D_train_it: 1
+
+# optimizer
+lr_G: 5e-4
+lr_D: 5e-4

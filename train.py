@@ -187,11 +187,11 @@ def train(gpu, args):
 
     # === LOSS === #
     from lib.core.loss import get_loss
-    loss = get_loss(args).cuda(args.gpu)
+    loss = get_loss(args, model).cuda(args.gpu)
 
     # === OPTIMIZER === #
     from lib.core.optimizer import get_optimizer
-    optimizer = get_optimizer(model, args)
+    optimizer = get_optimizer(args, model)
 
     # === TRAINING === #
     Trainer = getattr(__import__("lib.trainers.{}".format(args.trainer), fromlist=["Trainer"]), "Trainer")

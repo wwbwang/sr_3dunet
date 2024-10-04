@@ -1,11 +1,17 @@
 import torch.optim as Opt
+import itertools
 
-def get_optimizer(model, args):
+from lib.arch.RESIN import RESIN
+import torch
 
-    opt_fns = {
-        'adam': Opt.Adam(model.parameters(), lr = args.lr_start),
-        'sgd': Opt.SGD(model.parameters(), lr = args.lr_start),
-        'adagrad': Opt.Adagrad(model.parameters(), lr = args.lr_start)
-    }
+class RESIN_optimizer():
+    def __init__(self, model:RESIN, lr_G, lr_D) -> None:
+        self.optimG = Opt.Adam(itertools.chain(model.G_A.parameters(), model.G_B.parameters()), lr=lr_G)
+        self.optimD = Opt.Adam(itertools.chain(model.D_AnisoMIP.parameters(), 
+                                               model.D_IsoMIP_1.parameters(),
+                                               model.D_IsoMIP_2.parameters(),
+                                               model.D_RecA_1.parameters(),
+                                               model.D_RecA_2.parameters()), lr=lr_D)
 
-    return opt_fns.get(args.optimizer, "Invalid Optimizer")
+def get_optimizer(args, model):
+    return RESIN_optimizer(model.module, args.lr_G, args.lr_D)
