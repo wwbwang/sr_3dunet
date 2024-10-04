@@ -53,6 +53,8 @@ def main():
     for img_path in img_path_list:
         img = tifffile.imread(os.path.join(args.input, img_path))
         img = np.clip(img, min_clip, max_clip)
+        # img = img.transpose(1,0,2)
+        # img = np.flip(img, axis=-1)
         origin_shape = img.shape
         tifffile.imwrite(os.path.join(args.output, "input", "input" + img_path),
                          remove_outer_layer(img, args.remove_size).astype(np.uint16))
@@ -60,14 +62,16 @@ def main():
         start_time = time.time()
         torch.cuda.synchronize()
         out_img = model(img)
+        # out_img = out_img.transpose(1,0,2)
         torch.cuda.synchronize()
         end_time = time.time()
         print("avg-time_model:", (end_time-start_time)*1000, "ms,", "N, C, H, W, D:", origin_shape)
 
         rec_img = model_back(out_img)
+        # rec_img = rec_img.transpose(1,0,2)
         
         tifffile.imwrite(os.path.join(args.output, "output", "output" + img_path),
-                         remove_outer_layer(out_img, args.remove_size).astype(np.uint16))
+                         remove_outer_layer(out_img, args.remove_size))
         tifffile.imwrite(os.path.join(args.output, "rec", "rec" + img_path),
                          remove_outer_layer(rec_img, args.remove_size))
         pbar1.update(1)

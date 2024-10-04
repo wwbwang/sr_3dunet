@@ -19,10 +19,10 @@ from basicsr.models.base_model import BaseModel
 from ..utils.data_utils import get_projection, affine_img_VISoR, affine_img
 
 @MODEL_REGISTRY.register()
-class RESIN_Aux_Model(BaseModel):
+class RESIN_dev_Model(BaseModel): 
 
     def __init__(self, opt):
-        super(RESIN_Aux_Model, self).__init__(opt)
+        super(RESIN_dev_Model, self).__init__(opt)
 
         # define network
         self.net_g_A = build_network(opt['network_g_A'])
@@ -82,19 +82,9 @@ class RESIN_Aux_Model(BaseModel):
         self.net_d_isoproj1 = define_load_network(self.opt['network_d_isoproj'], 'pretrain_network_d_isoproj')
         self.net_d_A2C = define_load_network(self.opt['network_d_A2C'], 'pretrain_network_d_A2C')
         self.net_d_recA1 = define_load_network(self.opt['network_d_recA1'], 'pretrain_network_d_recA1')
-        self.net_d_recA2 = define_load_network(self.opt['network_d_recA2'], 'pretrain_network_d_recA2')
+        # self.net_d_recA2 = define_load_network(self.opt['network_d_recA2'], 'pretrain_network_d_recA2')
 
         # define losses
-        if train_opt.get('projection_opt'):
-            self.cri_projection = build_loss(train_opt['projection_opt']).to(self.device)
-        else:
-            self.cri_projection = None
-        
-        if train_opt.get('projection_ssim_opt'):
-            self.cri_projection_ssim = build_loss(train_opt['projection_ssim_opt']).to(self.device)
-        else:
-            self.cri_projection_ssim = None
-
         if train_opt.get('gan_opt'):
             self.cri_gan = build_loss(train_opt['gan_opt']).to(self.device)
         else:
@@ -126,7 +116,16 @@ class RESIN_Aux_Model(BaseModel):
         self.optimizers.append(self.optimizer_g)
         # optimizer d
         optim_type = train_opt['optim_d'].pop('type')
-        self.optimizer_d = self.get_optimizer(optim_type, itertools.chain(self.net_d_anisoproj.parameters(),self.net_d_isoproj0.parameters(),self.net_d_isoproj1.parameters(),self.net_d_A2C.parameters(),self.net_d_recA1.parameters(),self.net_d_recA2.parameters()), **train_opt['optim_d'])
+        self.optimizer_d = self.get_optimizer(optim_type, 
+                                              itertools.chain(
+                                                              self.net_d_anisoproj.parameters(),
+                                                              self.net_d_isoproj0.parameters(),
+                                                              self.net_d_isoproj1.parameters(),
+                                                              self.net_d_A2C.parameters(),
+                                                              self.net_d_recA1.parameters(),
+                                                            #   self.net_d_recA2.parameters(),
+                                                            ), 
+                                              **train_opt['optim_d'])
         self.optimizers.append(self.optimizer_d)
 
     def feed_data(self, data):
@@ -148,8 +147,8 @@ class RESIN_Aux_Model(BaseModel):
             p.requires_grad = False
         for p in self.net_d_recA1.parameters():
             p.requires_grad = False
-        for p in self.net_d_recA2.parameters():
-            p.requires_grad = False
+        # for p in self.net_d_recA2.parameters():
+        #     p.requires_grad = False
         for p in self.net_d_A2C.parameters():
             p.requires_grad = False
 
@@ -162,7 +161,7 @@ class RESIN_Aux_Model(BaseModel):
         
         self.recA1 = self.net_g_B(self.fakeB)
         self.fakeC = self.net_g_B(self.affine_fakeB)
-        self.recA2 = self.net_g_B(affine_img_VISoR(self.net_g_A(self.fakeC), aniso_dimension=affine_aniso_dimension, half_iso_dimension=affine_half_iso_dimension)[0])
+        # self.recA2 = self.net_g_B(affine_img_VISoR(self.net_g_A(self.fakeC), aniso_dimension=affine_aniso_dimension, half_iso_dimension=affine_half_iso_dimension)[0])
         
         # get iso and aniso projection arrays
         input_iso_proj = self.img_MIP
@@ -176,10 +175,11 @@ class RESIN_Aux_Model(BaseModel):
             # cycle loss
             if self.cri_cycle:
                 l_cycle1 = self.cri_cycle(self.realA, self.recA1) + self.cri_cycle_ssim(self.realA, self.recA1)
-                l_cycle2 = self.cri_cycle(self.realA, self.recA2) + self.cri_cycle_ssim(self.realA, self.recA2)
-                l_total += l_cycle1 + l_cycle2
+                # l_cycle2 = self.cri_cycle(self.realA, self.recA2) + self.cri_cycle_ssim(self.realA, self.recA2)
+                # l_total += l_cycle1 + l_cycle2
+                l_total += l_cycle1
                 loss_dict['l_cycle1'] = l_cycle1
-                loss_dict['l_cycle2'] = l_cycle2
+                # loss_dict['l_cycle2'] = l_cycle2
 
             # generator loss
             fakeB_g_anisoproj_pred = self.net_d_anisoproj(output_aniso_proj)
@@ -202,10 +202,10 @@ class RESIN_Aux_Model(BaseModel):
             l_total += l_g_recA1
             loss_dict['l_g_recA1'] = l_g_recA1
             
-            recA2_g_pred = self.net_d_recA2(self.recA2)
-            l_g_recA2 = self.cri_gan(recA2_g_pred, True, is_disc=False)
-            l_total += l_g_recA2
-            loss_dict['l_g_recA2'] = l_g_recA2
+            # recA2_g_pred = self.net_d_recA2(self.recA2)
+            # l_g_recA2 = self.cri_gan(recA2_g_pred, True, is_disc=False)
+            # l_total += l_g_recA2
+            # loss_dict['l_g_recA2'] = l_g_recA2
             
             fakeC_g_pred = self.net_d_A2C(self.fakeC)
             l_g_A2C = self.cri_gan(fakeC_g_pred, True, is_disc=False)
@@ -228,8 +228,8 @@ class RESIN_Aux_Model(BaseModel):
                 p.requires_grad = True
             for p in self.net_d_recA1.parameters():
                 p.requires_grad = True
-            for p in self.net_d_recA2.parameters():
-                p.requires_grad = True
+            # for p in self.net_d_recA2.parameters():
+            #     p.requires_grad = True
             for p in self.net_d_A2C.parameters():
                 p.requires_grad = True
 
@@ -267,51 +267,53 @@ class RESIN_Aux_Model(BaseModel):
             if self.backward_flag:
                 l_d_real_recA1.backward()
             
-            recA2_d_pred = self.net_d_recA2(self.realA)
-            l_d_real_recA2 = self.cri_gan(recA2_d_pred, True, is_disc=True)
-            loss_dict['l_d_real_recA2'] = l_d_real_recA2
-            if self.backward_flag:
-                l_d_real_recA2.backward()
+            # recA2_d_pred = self.net_d_recA2(self.realA)
+            # l_d_real_recA2 = self.cri_gan(recA2_d_pred, True, is_disc=True)
+            # loss_dict['l_d_real_recA2'] = l_d_real_recA2
+            # if self.backward_flag:
+            #     l_d_real_recA2.backward()
             
             # fake
             fakeB_d_anisoproj_pred = self.net_d_anisoproj(output_aniso_proj.detach())
-            l_d_fake_B_aniso = self.cri_gan(fakeB_d_anisoproj_pred, False, is_disc=True)
+            l_d_fake_B_aniso = self.cri_gan(fakeB_d_anisoproj_pred, False, is_disc=False)
             loss_dict['l_d_fake_B_aniso'] = l_d_fake_B_aniso
             if self.backward_flag:
                 l_d_fake_B_aniso.backward()
             
             fakeB_d_isoproj0_pred = self.net_d_isoproj0(output_half_iso_proj0.detach())
-            l_d_fake_B_iso0 = self.cri_gan(fakeB_d_isoproj0_pred, False, is_disc=True)
+            l_d_fake_B_iso0 = self.cri_gan(fakeB_d_isoproj0_pred, False, is_disc=False)
             loss_dict['l_d_fake_B_iso0'] = l_d_fake_B_iso0
             if self.backward_flag:
                 l_d_fake_B_iso0.backward()
                 
             fakeB_d_isoproj1_pred = self.net_d_isoproj1(output_half_iso_proj1.detach())
-            l_d_fake_B_iso1 = self.cri_gan(fakeB_d_isoproj1_pred, False, is_disc=True)
+            l_d_fake_B_iso1 = self.cri_gan(fakeB_d_isoproj1_pred, False, is_disc=False)
             loss_dict['l_d_fake_B_iso1'] = l_d_fake_B_iso1
             if self.backward_flag:
                 l_d_fake_B_iso1.backward()
             
             fakeC_d_pred = self.net_d_A2C(self.fakeC.detach())
-            l_d_fake_A2C = self.cri_gan(fakeC_d_pred, False, is_disc=True)
+            l_d_fake_A2C = self.cri_gan(fakeC_d_pred, False, is_disc=False)
             loss_dict['l_d_fake_A2C'] = l_d_fake_A2C
             if self.backward_flag:
                 l_d_fake_A2C.backward()
             
             recA1_d_pred = self.net_d_recA1(self.recA1.detach())
-            l_d_fake_recA1 = self.cri_gan(recA1_d_pred, False, is_disc=True)
+            l_d_fake_recA1 = self.cri_gan(recA1_d_pred, False, is_disc=False)
             loss_dict['l_d_fake_recA1'] = l_d_fake_recA1
             if self.backward_flag:
                 l_d_fake_recA1.backward()
             
-            recA2_d_pred = self.net_d_recA2(self.recA2.detach())
-            l_d_fake_recA2 = self.cri_gan(recA2_d_pred, False, is_disc=True)
-            loss_dict['l_d_fake_recA2'] = l_d_fake_recA2
-            if self.backward_flag:
-                l_d_fake_recA2.backward()
+            # recA2_d_pred = self.net_d_recA2(self.recA2.detach())
+            # l_d_fake_recA2 = self.cri_gan(recA2_d_pred, False, is_disc=False)
+            # loss_dict['l_d_fake_recA2'] = l_d_fake_recA2
+            # if self.backward_flag:
+            #     l_d_fake_recA2.backward()
             
-            l_d_total += l_d_real_B_aniso + l_d_real_B_iso0+ l_d_real_B_iso1 + l_d_real_A2C + l_d_real_recA1 + l_d_real_recA2
-            l_d_total += l_d_fake_B_aniso + l_d_fake_B_iso0+ l_d_fake_B_iso1 + l_d_fake_A2C + l_d_fake_recA1 + l_d_fake_recA2
+            # l_d_total += l_d_real_B_aniso + l_d_real_B_iso0+ l_d_real_B_iso1 + l_d_real_A2C + l_d_real_recA1 + l_d_real_recA2
+            # l_d_total += l_d_fake_B_aniso + l_d_fake_B_iso0+ l_d_fake_B_iso1 + l_d_fake_A2C + l_d_fake_recA1 + l_d_fake_recA2
+            l_d_total += l_d_real_B_aniso + l_d_real_B_iso0+ l_d_real_B_iso1 + l_d_real_A2C + l_d_real_recA1
+            l_d_total += l_d_fake_B_aniso + l_d_fake_B_iso0+ l_d_fake_B_iso1 + l_d_fake_A2C + l_d_fake_recA1
             loss_dict['l_d_total'] = l_d_total
             
             self.optimizer_d.step()
@@ -352,5 +354,5 @@ class RESIN_Aux_Model(BaseModel):
         self.save_network(self.net_d_isoproj1, 'net_d_isoproj1', current_iter)
         self.save_network(self.net_d_A2C, 'net_d_A2C', current_iter)
         self.save_network(self.net_d_recA1, 'net_d_recA1', current_iter)
-        self.save_network(self.net_d_recA2, 'net_d_recA2', current_iter)
+        # self.save_network(self.net_d_recA2, 'net_d_recA2', current_iter)
         self.save_training_state(epoch, current_iter)

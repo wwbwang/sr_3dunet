@@ -4,6 +4,7 @@ import os
 import torch.nn.functional as F
 from sr_3dunet.utils.data_utils import preprocess, postprocess, get_rotated_img, get_anti_rotated_img
 from sr_3dunet.archs.unet_3d_generator_arch import UNet_3d_Generator
+from empatches import EMPatches
 
 def get_inference_model(args, device) -> UNet_3d_Generator:
     """return an on device model with eval mode"""
@@ -122,52 +123,70 @@ def handle_smalltif(model, piece_size, overlap, rotated_flag, percentiles, datas
     postprocess(img_out, min_value, max_value, dataset_mean)
     return img_out[:h,:w,:d]
     
-def handle_bigtif(model, piece_size, overlap, rotated_flag, percentiles, dataset_mean, device, img):
-    '''
-    img: (h, w, d)
-    '''
-    h, w, d = img.shape
-    origin_shape = img.shape
-    img_out = np.zeros_like(img)
+# def handle_bigtif(model, piece_size, overlap, rotated_flag, percentiles, dataset_mean, device, img):
+#     '''
+#     img: (h, w, d)
+#     '''
+#     h, w, d = img.shape
+#     origin_shape = img.shape
+#     img = img.astype(np.float32)
+#     img_out = np.zeros_like(img)
     
-    h_now, w_now, d_now = img_out.shape
+#     h_now, w_now, d_now = img_out.shape
     
-    for start_h in range(0, h, piece_size-overlap):
-        end_h = start_h + piece_size
+#     for start_h in range(0, h, piece_size-overlap):
+#         end_h = start_h + piece_size
         
-        for start_w in range(0, w, piece_size-overlap):
-            end_w = start_w + piece_size
+#         for start_w in range(0, w, piece_size-overlap):
+#             end_w = start_w + piece_size
             
-            for start_d in range(0, d, piece_size-overlap):
-                end_d = start_d + piece_size
+#             for start_d in range(0, d, piece_size-overlap):
+#                 end_d = start_d + piece_size
                 
-                h_cutleft = 0 if start_h==0 else overlap//2
-                w_cutleft = 0 if start_w==0 else overlap//2
-                d_cutleft = 0 if start_d==0 else overlap//2
-                h_cutright = 0 if end_h==h_now else overlap//2
-                w_cutright = 0 if end_w==w_now else overlap//2
-                d_cutright = 0 if end_d==d_now else overlap//2
+#                 h_cutleft = 0 if start_h==0 else overlap//2
+#                 w_cutleft = 0 if start_w==0 else overlap//2
+#                 d_cutleft = 0 if start_d==0 else overlap//2
+#                 h_cutright = 0 if end_h==h_now else overlap//2
+#                 w_cutright = 0 if end_w==w_now else overlap//2
+#                 d_cutright = 0 if end_d==d_now else overlap//2
                 
-                # img_tmp = img[:, :, start_h:end_h, start_w:end_w, start_d:end_d]
-                img_tmp = img[start_h:end_h, start_w:end_w, start_d:end_d]
-                img_tmp, min_value, max_value = preprocess(img_tmp, percentiles, dataset_mean)
-                if rotated_flag:
-                    img_tmp = get_rotated_img(img_tmp, device)
-                img_tmp = extend_block(img_tmp, piece_size, overlap)
-                img_tmp = torch.from_numpy(img_tmp)[None,None].to(device)
-                img_out = model(img_tmp)[0, 0].cpu().numpy()
-                if rotated_flag:
-                    img_out = get_anti_rotated_img(img_out, origin_shape)
-                postprocess(img_out, min_value, max_value, dataset_mean)
+#                 # img_tmp = img[:, :, start_h:end_h, start_w:end_w, start_d:end_d]
+#                 img_tmp = img[start_h:end_h, start_w:end_w, start_d:end_d]
+#                 img_tmp, min_value, max_value = preprocess(img_tmp, percentiles, dataset_mean)
+#                 if rotated_flag:
+#                     img_tmp = get_rotated_img(img_tmp, device)
+#                 img_tmp = extend_block(img_tmp, piece_size, overlap)
+#                 img_tmp = torch.from_numpy(img_tmp)[None,None].to(device)
+#                 img_temp_out = model(img_tmp)[0, 0].cpu().numpy()
+#                 if rotated_flag:
+#                     img_temp_out = get_anti_rotated_img(img_temp_out, origin_shape)
+#                 postprocess(img_temp_out, min_value, max_value, dataset_mean)
                 
-                img_out[start_h+h_cutleft:end_h-h_cutright, start_w+w_cutleft:end_w-w_cutright, start_d+d_cutleft:end_d-d_cutright] = img_out[
-                                        0+h_cutleft:piece_size-h_cutright, 0+w_cutleft:piece_size-w_cutright, 0+d_cutleft:piece_size-d_cutright]
+#                 img_out[start_h+h_cutleft:end_h-h_cutright, start_w+w_cutleft:end_w-w_cutright, start_d+d_cutleft:end_d-d_cutright] = img_temp_out[
+#                                         0+h_cutleft:piece_size-h_cutright, 0+w_cutleft:piece_size-w_cutright, 0+d_cutleft:piece_size-d_cutright]
                     
-                if end_d==d_now:
-                    break
-            if end_w==w_now:
-                break
-        if end_h==h_now:
-            break
+#                 if end_d==d_now:
+#                     break
+#             if end_w==w_now:
+#                 break
+#         if end_h==h_now:
+#             break
     
-    return img_out[:h,:w,:d]
+#     return img_out[:h,:w,:d]
+
+def handle_bigtif(model, piece_size, overlap, rotated_flag, percentiles, dataset_mean, device, img):
+    emp = EMPatches()
+    patches, indices  = emp.extract_patches(img, patchsize=piece_size, overlap=overlap/piece_size, stride=None, vox=True)
+    res = []
+    for patch in patches:
+        patch = patch.astype(np.float32)
+        patch, min_value, max_value = preprocess(patch, percentiles, dataset_mean)
+        if rotated_flag:
+            patch = get_rotated_img(patch, device)
+        patch = torch.from_numpy(patch)[None,None].to(device)
+        patch_out = model(patch)[0, 0].cpu().numpy()
+        patch_out = postprocess(patch_out, min_value, max_value, dataset_mean)
+        patch_out = patch_out.astype(np.uint16)
+        res.append(patch_out)
+    out = emp.merge_patches(res, indices, mode='avg')
+    return out
