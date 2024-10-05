@@ -6,13 +6,13 @@ angel: -45
 # model
 in_channels: 1
 out_channels: 1
-features_G: [32,64,128]
+features_G: [64,128,256]
 features_D: [64,128,256]
 norm_type: null
 
 # data
 data: 'data/RESIN_datasets/neuron/fg_blocks'
-data_norm_type: 'abs'
+data_norm_type: 'min_max'
 augment: True
 
 # loss

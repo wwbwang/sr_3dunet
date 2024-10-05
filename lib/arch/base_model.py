@@ -121,7 +121,7 @@ class UNetGenerator(nn.Module):
             self.MaxPool = nn.MaxPool3d
         else:
             raise Exception('Invalid dim.')
-
+            
         # Encoder
         for feature in features:
             self.downs.append(DoubleConv(in_channels, feature, norm_type=norm_type, dim=dim))
@@ -138,7 +138,7 @@ class UNetGenerator(nn.Module):
             )
             self.ups.append(DoubleConv(feature*2, feature, norm_type=norm_type, dim=dim))
 
-        self.final_conv = Conv(features[0], out_channels, kernel_size=1)
+        self.final_conv = Conv(features[0], out_channels, kernel_size=3, padding=1)
 
     def forward(self, x):
         input = x
@@ -158,6 +158,12 @@ class UNetGenerator(nn.Module):
                 x = nn.functional.pad(x, (0, skip.shape[3]-x.shape[3], 0, skip.shape[2]-x.shape[2]))
             x = torch.cat((skip, x), dim=1)
             x = self.ups[i+1](x)
-        x = x + input
         x = self.final_conv(x)
         return x
+    
+if __name__ == '__main__':
+    model = UNetGenerator(norm_type=None)
+    device = torch.device('cuda:0')
+    data_in = torch.rand((1,1,64,64,64))
+    out = model(data_in)
+    print(out.shape)

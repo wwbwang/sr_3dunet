@@ -10,7 +10,7 @@ if __name__ == '__main__':
     sys.path.append(os.getcwd())
 
 class tif_dataset(data.Dataset):
-    def __init__(self, data_path, data_norm_type='abs', augment=True, aniso_dim=-2):
+    def __init__(self, data_path, data_norm_type='min_max', augment=True, aniso_dim=-2):
         super(tif_dataset, self).__init__()
         img_name_list = os.listdir(data_path)
         self.img_path_list = []
@@ -38,7 +38,7 @@ class tif_dataset(data.Dataset):
     def __len__(self):
         return len(self.img_path_list)
 
-def norm_min_max(img:np.ndarray, percentiles, dataset_mean):
+def norm_min_max(img:np.ndarray, percentiles=[0,1]):
     flattened_arr = np.sort(img.flatten())
     clip_low = int(percentiles[0] * len(flattened_arr))
     clip_high = int(percentiles[1] * len(flattened_arr))
@@ -47,7 +47,6 @@ def norm_min_max(img:np.ndarray, percentiles, dataset_mean):
     min_value = np.min(clipped_arr)
     max_value = np.max(clipped_arr) 
     img = (clipped_arr-min_value)/(max_value-min_value)
-    img = img - dataset_mean
     return img
 
 def norm_abs(img:np.ndarray, abs_value=65535):

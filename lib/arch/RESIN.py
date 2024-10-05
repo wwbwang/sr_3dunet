@@ -61,10 +61,9 @@ def get_model(args):
 if __name__ == '__main__':
     from torchinfo import summary
     device = torch.device('cuda:0')
-    model = RESIN('unet', 'deep_linear_gen', 1, 1, [32,64,128], [64,128,256], norm_type='batch')
+    model = RESIN(1, 1, [64,128,256], [64,128,256], norm_type=None)
     model.to(device)
     size = 64
-    real_LR = torch.rand(1,1,size,size,size).to(device)
+    real_A = torch.rand(1,1,size,size,size).to(device)
     summary(model, (1,1,size,size,size))
-    fake_HR, rec_LR = model(real_LR)
-    print(fake_HR.shape, rec_LR.shape)
+    fake_B, rec_A1, fake_B_T, rec_A2 = model(real_A)
