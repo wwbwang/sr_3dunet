@@ -61,7 +61,7 @@ class Trainer:
             # === Forward pass === #
             with torch.cuda.amp.autocast(self.args.fp16):
                 model_out = self.model(real_A)
-                loss_G, loss_D, loss_logger = self.loss(real_A, model_out, it)
+                loss_G, loss_D, loss_logger, mip_logger = self.loss(real_A, model_out, it)
 
             # Sanity Check
             if not math.isfinite(loss_G.item()):
@@ -101,9 +101,17 @@ class Trainer:
             metric_logger.update(**loss_logger)
 
             if self.args.main:
+                # loss logger
                 for key in loss_logger.keys():
                     self.writer.add_scalar(key, metric_logger.meters[key].value, it)
                 self.writer.add_scalar(key, metric_logger.meters[key].value, it)
+
+                # mip logger
+                if it % 200 == 0:
+                    for name, mip in mip_logger.items():
+                        self.writer.add_image(name, mip, it)
+
+                # lr logger
                 self.writer.add_scalar('LearningRate/LR_G', self.optimizer.optimG.param_groups[0]["lr"], it)
                 self.writer.add_scalar('LearningRate/LR_D', self.optimizer.optimD.param_groups[0]["lr"], it)
 
@@ -144,7 +152,6 @@ class Trainer:
                 self.save(epoch)
 
     def load_if_available(self):
-
         ckpts = sorted(glob(f'{self.args.out}/weights/{self.args.model}/Epoch_*.pth'))
 
         if len(ckpts) >0:

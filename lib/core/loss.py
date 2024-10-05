@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import torchvision
+import math
 
 if __name__ == '__main__':
     import os, sys
@@ -67,11 +69,17 @@ class RESIN_Loss(nn.Module):
         self.D_train_it = D_train_it
 
         self.loss_logger = dict()
+        self.mip_logger = dict()
     
     def forward(self, real_A, model_out, it):
         self.real_A = real_A
         self.fake_B, self.rec_A1, self.fake_B_T, self.rec_A2 = model_out
         self.aniso_mip, self.halfIso_mip1, self.halfIso_mip2 = self.get_mip(self.fake_B, self.aniso_dim)
+        b = self.aniso_mip.shape[0]
+        self.nrow = math.ceil(b/math.floor(math.sqrt(b)))
+        self.mip_logger['aniso_mip'] = torchvision.utils.make_grid(self.aniso_mip, nrow=self.nrow)
+        self.mip_logger['halfIso_mip1'] = torchvision.utils.make_grid(self.halfIso_mip1, nrow=self.nrow)
+        self.mip_logger['halfIso_mip2'] = torchvision.utils.make_grid(self.halfIso_mip2, nrow=self.nrow)
 
         # === G forward ===
         if (it+1)%self.G_train_it == 0:
@@ -91,7 +99,7 @@ class RESIN_Loss(nn.Module):
         else:
             loss_D = torch.Tensor([0.0])
 
-        return loss_G, loss_D, dict(sorted(self.loss_logger.items()))
+        return loss_G, loss_D, dict(sorted(self.loss_logger.items())), self.mip_logger
 
     def set_requires_grad(self, nets:list[torch.nn.Module], requires_grad=False):
         if not isinstance(nets, list):
@@ -134,6 +142,8 @@ class RESIN_Loss(nn.Module):
     def cal_loss_D(self):
         # real MIP
         ref_iso_mip = get_slant_mip(self.real_A, angel=self.angel, iso_dim=self.iso_dim)
+        self.mip_logger['ref_iso_mip'] = torchvision.utils.make_grid(ref_iso_mip, nrow=self.nrow)
+
         loss_real_pred_by_D_aniso = self.cal_GAN_loss(self.model.D_AnisoMIP, ref_iso_mip, True, is_disc=True)
         loss_real_pred_by_D_iso1 = self.cal_GAN_loss(self.model.D_IsoMIP_1, ref_iso_mip, True, is_disc=True)
         loss_real_pred_by_D_iso2 = self.cal_GAN_loss(self.model.D_IsoMIP_2, ref_iso_mip, True, is_disc=True)
@@ -161,10 +171,11 @@ class RESIN_Loss(nn.Module):
         self.loss_logger['loss_D/loss_fake_pred_by_D_recA1'] = loss_fake_pred_by_D_recA1.item()
         self.loss_logger['loss_D/loss_fake_pred_by_D_recA2'] = loss_fake_pred_by_D_recA2.item()
 
-        loss_D = loss_real_pred_by_D_aniso + loss_real_pred_by_D_iso1 + loss_real_pred_by_D_iso2 + \
-                 loss_real_pred_by_D_recA1 + loss_real_pred_by_D_recA2 + \
-                 loss_fake_pred_by_D_aniso + loss_fake_pred_by_D_iso1 + loss_fake_pred_by_D_iso1 + \
-                 loss_fake_pred_by_D_recA1 + loss_fake_pred_by_D_recA2
+        loss_D_real = loss_real_pred_by_D_aniso + loss_real_pred_by_D_iso1 + loss_real_pred_by_D_iso2 + \
+                      loss_real_pred_by_D_recA1 + loss_real_pred_by_D_recA2
+        loss_D_fake = loss_fake_pred_by_D_aniso + loss_fake_pred_by_D_iso1 + loss_fake_pred_by_D_iso2 + \
+                      loss_fake_pred_by_D_recA1 + loss_fake_pred_by_D_recA2
+        loss_D = loss_D_real + loss_D_fake
         self.loss_logger['loss/loss_D'] = loss_D.item()
         return loss_D
     

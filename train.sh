@@ -8,9 +8,9 @@ python train.py -model neuron_dev \
                 -save_every 5 \
                 -out out \
                 -cfg config/RESIN.yaml \
-                -reset \
                 -slurm \
                 -slurm_ngpus 2 \
                 -slurm_nnodes 1 \
                 -slurm_nodelist c002 \
                 -slurm_partition compute \
+                -reset
