@@ -60,6 +60,10 @@ def parse_args():
     # === Architecture === #
     parser.add_argument('-arch', type=str, default = 'mlp',
                                             help='Architecture to choose')
+    
+    # === Architecture === #
+    parser.add_argument('-loss', type=str, default = 'loss',
+                                            help='Architecture to choose')
 
     # === Trainer === #
     parser.add_argument('-trainer', type=str, default = 'trainer',
@@ -186,7 +190,7 @@ def train(gpu, args):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
 
     # === LOSS === #
-    from lib.core.loss import get_loss
+    get_loss = getattr(__import__("lib.arch.{}".format(args.loss), fromlist=["get_loss"]), "get_loss")
     loss = get_loss(args, model).cuda(args.gpu)
 
     # === OPTIMIZER === #

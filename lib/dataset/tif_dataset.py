@@ -80,7 +80,7 @@ def get_dataset(args):
     return train_dataset
 
 if __name__ == '__main__':
-    from ryu_pytools import arr_info
+    from ryu_pytools import arr_info, plot_mip, plot_some
     import napari
     from lib.utils.utils import get_slant_mip
 
@@ -95,7 +95,10 @@ if __name__ == '__main__':
     arr_info(cube_np)
     arr_info(mip_np)
 
-    viewer = napari.Viewer(ndisplay=3)
-    viewer.add_image(cube_np)
-    viewer.add_image(mip_np)
-    napari.run()
+    plot_mip(cube_np, figsize=(15,5))
+    plot_some([mip_np])
+    pass
+    # viewer = napari.Viewer(ndisplay=3)
+    # viewer.add_image(cube_np)
+    # viewer.add_image(mip_np)
+    # napari.run()
