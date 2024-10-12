@@ -7,8 +7,8 @@ if __name__ == '__main__':
     import os, sys
     sys.path.append(os.getcwd())
 
-from lib.arch.RESIN import RESIN
-from lib.core.ssim_loss import SSIM_Loss
+from lib.arch.RESIN_base import RESIN_base
+from lib.loss.ssim_loss import SSIM_Loss
 from lib.utils.utils import get_slant_mip
 
 class GAN_Loss(nn.Module):
@@ -45,7 +45,7 @@ class L1_Loss(torch.nn.Module):
         return loss
 
 class RESIN_Loss(nn.Module):
-    def __init__(self, model:RESIN, 
+    def __init__(self, model:RESIN_base, 
                  lambda_GAN=1., lambda_Cycle=10., lambda_SSIM=1.,
                  aniso_dim=-2, iso_dim=-1, angel=-45,
                  G_train_it=1, D_train_it=1) -> None:
@@ -73,7 +73,7 @@ class RESIN_Loss(nn.Module):
     
     def forward(self, real_A, model_out, it):
         self.real_A = real_A
-        self.fake_B, self.rec_A1, self.fake_B_T, self.rec_A2 = model_out
+        self.fake_B, self.rec_A1, self.fake_B_T, self.rec_A2, self.rec_A3 = model_out
         self.aniso_mip, self.halfIso_mip1, self.halfIso_mip2 = self.get_mip(self.fake_B, self.aniso_dim)
         b = self.aniso_mip.shape[0]
         self.nrow = math.ceil(b/math.floor(math.sqrt(b)))
@@ -84,7 +84,7 @@ class RESIN_Loss(nn.Module):
         # === G forward ===
         if (it+1)%self.G_train_it == 0:
             self.set_requires_grad([self.model.D_AnisoMIP, self.model.D_IsoMIP_1, self.model.D_IsoMIP_2, 
-                                    self.model.D_RecA_1, self.model.D_RecA_2],
+                                    self.model.D_RecA_1, self.model.D_RecA_2, self.model.D_RecA_3],
                                     False)
             loss_G = self.cal_loss_G()
         else:
@@ -93,7 +93,7 @@ class RESIN_Loss(nn.Module):
         # === D forward ===
         if (it+1)%self.D_train_it == 0:
             self.set_requires_grad([self.model.D_AnisoMIP, self.model.D_IsoMIP_1, self.model.D_IsoMIP_2, 
-                                    self.model.D_RecA_1, self.model.D_RecA_2],
+                                    self.model.D_RecA_1, self.model.D_RecA_2, self.model.D_RecA_3],
                                     True)
             loss_D = self.cal_loss_D()
         else:
@@ -116,8 +116,11 @@ class RESIN_Loss(nn.Module):
     
     def cal_loss_G(self):
         # cal Cycle loss
-        loss_cycle = self.Cycle_Loss(self.real_A, self.rec_A1) + self.SSIM_Loss(self.real_A, self.rec_A1)
-        self.loss_logger['loss_G/loss_cycle'] = loss_cycle.item()
+        loss_cycle_1 = self.Cycle_Loss(self.real_A, self.rec_A1) + self.SSIM_Loss(self.real_A, self.rec_A1)
+        self.loss_logger['loss_G/loss_cycle_1'] = loss_cycle_1.item()
+
+        loss_cycle_2 = self.Cycle_Loss(self.real_A, self.rec_A3) + self.SSIM_Loss(self.real_A, self.rec_A3)
+        self.loss_logger['loss_G/loss_cycle_2'] = loss_cycle_2.item()
         
         # cal MIP loss
         loss_aniso_mip = self.cal_GAN_loss(self.model.D_AnisoMIP, self.aniso_mip, True, is_disc=False)
@@ -130,12 +133,14 @@ class RESIN_Loss(nn.Module):
         # cal Cube loss
         loss_rec_A1 = self.cal_GAN_loss(self.model.D_RecA_1, self.rec_A1, True, is_disc=False)
         loss_rec_A2 = self.cal_GAN_loss(self.model.D_RecA_2, self.rec_A2, True, is_disc=False)
+        loss_rec_A3 = self.cal_GAN_loss(self.model.D_RecA_3, self.rec_A3, True, is_disc=False)
         self.loss_logger['loss_G/loss_rec_A1'] = loss_rec_A1.item()
         self.loss_logger['loss_G/loss_rec_A2'] = loss_rec_A2.item()
+        self.loss_logger['loss_G/loss_rec_A3'] = loss_rec_A3.item()
 
-        loss_G = loss_cycle + \
+        loss_G = loss_cycle_1 + loss_cycle_2 +\
                  loss_aniso_mip + loss_halfIso_mip1 + loss_halfIso_mip2 + \
-                 loss_rec_A1 + loss_rec_A2
+                 loss_rec_A1 + loss_rec_A2 + loss_rec_A3
         self.loss_logger['loss/loss_G'] = loss_G.item()
         return loss_G
 
@@ -154,8 +159,10 @@ class RESIN_Loss(nn.Module):
         # real Cube
         loss_real_pred_by_D_recA1 = self.cal_GAN_loss(self.model.D_RecA_1, self.real_A, True, is_disc=True)
         loss_real_pred_by_D_recA2 = self.cal_GAN_loss(self.model.D_RecA_2, self.real_A, True, is_disc=True)
+        loss_real_pred_by_D_recA3 = self.cal_GAN_loss(self.model.D_RecA_3, self.real_A, True, is_disc=True)
         self.loss_logger['loss_D/loss_real_pred_by_D_recA1'] = loss_real_pred_by_D_recA1.item()
         self.loss_logger['loss_D/loss_real_pred_by_D_recA2'] = loss_real_pred_by_D_recA2.item()
+        self.loss_logger['loss_D/loss_real_pred_by_D_recA3'] = loss_real_pred_by_D_recA3.item()
 
         # fake MIP
         loss_fake_pred_by_D_aniso = self.cal_GAN_loss(self.model.D_AnisoMIP, self.aniso_mip.detach(), False, is_disc=True)
@@ -168,13 +175,15 @@ class RESIN_Loss(nn.Module):
         # fake Cube
         loss_fake_pred_by_D_recA1 = self.cal_GAN_loss(self.model.D_RecA_1, self.rec_A1.detach(), False, is_disc=True)
         loss_fake_pred_by_D_recA2 = self.cal_GAN_loss(self.model.D_RecA_2, self.rec_A2.detach(), False, is_disc=True)
+        loss_fake_pred_by_D_recA3 = self.cal_GAN_loss(self.model.D_RecA_3, self.rec_A3.detach(), False, is_disc=True)
         self.loss_logger['loss_D/loss_fake_pred_by_D_recA1'] = loss_fake_pred_by_D_recA1.item()
         self.loss_logger['loss_D/loss_fake_pred_by_D_recA2'] = loss_fake_pred_by_D_recA2.item()
+        self.loss_logger['loss_D/loss_fake_pred_by_D_recA3'] = loss_fake_pred_by_D_recA3.item()
 
         loss_D_real = loss_real_pred_by_D_aniso + loss_real_pred_by_D_iso1 + loss_real_pred_by_D_iso2 + \
-                      loss_real_pred_by_D_recA1 + loss_real_pred_by_D_recA2
+                      loss_real_pred_by_D_recA1 + loss_real_pred_by_D_recA2 + loss_real_pred_by_D_recA3
         loss_D_fake = loss_fake_pred_by_D_aniso + loss_fake_pred_by_D_iso1 + loss_fake_pred_by_D_iso2 + \
-                      loss_fake_pred_by_D_recA1 + loss_fake_pred_by_D_recA2
+                      loss_fake_pred_by_D_recA1 + loss_fake_pred_by_D_recA2 + loss_fake_pred_by_D_recA3
         loss_D = loss_D_real + loss_D_fake
         self.loss_logger['loss/loss_D'] = loss_D.item()
         return loss_D
@@ -201,7 +210,7 @@ def get_loss(args, model):
 
 if __name__ == '__main__':
     device = torch.device('cuda:0')
-    model = RESIN(1, 1, [64,128,256], [64,128,256], norm_type=None, aniso_dim=-2, iso_dim=-1)
+    model = RESIN_base(1, 1, [64,128,256], [64,128,256], norm_type=None, aniso_dim=-2, iso_dim=-1)
     model.to(device)
 
     B = 1
@@ -209,6 +218,7 @@ if __name__ == '__main__':
 
     real_A = torch.rand(B,1,size,size,size).to(device)
     model_out = (
+        torch.rand(B,1,size,size,size).to(device),
         torch.rand(B,1,size,size,size).to(device),
         torch.rand(B,1,size,size,size).to(device),
         torch.rand(B,1,size,size,size).to(device),

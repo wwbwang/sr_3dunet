@@ -3,6 +3,12 @@ iso_dim: -1
 aniso_dim: -2
 angel: -45
 
+arch: RESIN_base_subtract
+optimizer: RESIN_base_subtract
+loss: RESIN_base_subtract
+dataset: tif_dataset
+trainer: trainer
+
 # model
 in_channels: 1
 out_channels: 1
@@ -11,7 +17,7 @@ features_D: [64,128,256]
 norm_type: null
 
 # data
-data: 'data/RESIN_datasets/neuron/fg_blocks'
+data: 'data/RESIN/neuron/64_1k'
 data_norm_type: 'min_max'
 augment: True
 
@@ -23,5 +29,6 @@ G_train_it: 1
 D_train_it: 1
 
 # optimizer
-lr_G: 5e-4
-lr_D: 5e-4
+lr_G: 1e-4
+lr_D: 1e-4
+lr_end: 1e-7

@@ -3,8 +3,6 @@ from torch import autograd as autograd
 from torch import nn as nn
 from torch.nn import functional as F
 
-from basicsr.utils.registry import LOSS_REGISTRY
-
 def _fspecial_gauss_1d(size, sigma):
     r"""Create 1-D gauss kernel
     Args:

@@ -86,7 +86,7 @@ def init_dist_gpu(gpu, args):
 
     if args.slurm:
         job_env = submitit.JobEnvironment()
-        args.output_dir = Path(str(args.output_dir).replace("%j", f"{str(job_env.job_id)}_{args.model}"))
+        args.output_dir = Path(str(args.output_dir).replace("%j", str(job_env.job_id)))
         args.gpu = job_env.local_rank
         args.rank = job_env.global_rank
     else:

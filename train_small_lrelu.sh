@@ -1,0 +1,12 @@
+python train.py -model neuron_small_lrelu \
+                -batch_per_gpu 4 \
+                -epochs 2000 \
+                -save_every 5 \
+                -out out \
+                -cfg config/RESIN_small.yaml \
+                -slurm \
+                -slurm_ngpus 8 \
+                -slurm_nnodes 1 \
+                -slurm_nodelist c001 \
+                -slurm_partition compute \
+                -reset

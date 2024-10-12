@@ -1,0 +1,34 @@
+# common
+iso_dim: -1
+aniso_dim: -2
+angel: -45
+
+arch: RESIN_small
+optimizer: RESIN_small
+loss: RESIN_small
+dataset: tif_dataset
+trainer: trainer
+
+# model
+in_channels: 1
+out_channels: 1
+features_G: [64,128,256]
+features_D: [64,128,256]
+norm_type: null
+
+# data
+data: 'data/RESIN/neuron/64_1k'
+data_norm_type: 'min_max'
+augment: True
+
+# loss
+lambda_GAN: 1.
+lambda_Cycle: 10.
+lambda_SSIM: 1.
+G_train_it: 1
+D_train_it: 1
+
+# optimizer
+lr_G: 1e-4
+lr_D: 1e-4
+lr_end: 1e-7

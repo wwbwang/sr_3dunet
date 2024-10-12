@@ -10,14 +10,15 @@ from ryu_pytools import tensor_to_ndarr, check_dir
 if __name__ == '__main__':
     import sys
     sys.path.append(os.getcwd())
-from lib.datasets.tif_dataset import normalize
-from lib.arch.RESIN import RESIN
-# from lib.arch.RESIN_prelu import RESIN
+from lib.dataset.tif_dataset import normalize
+from lib.arch.RESIN_small_plus import RESIN_small_plus
 
 def main():
-    img_path = '/home/ryuuyou/E5/project/data/RESIN_datasets/neuron_45d/test'
-    model_name = 'neuron_dev'
-    epoch = 595
+    # img_path = '/home/ryuuyou/E5/project/data/RESIN_datasets/neuron/val_64'
+    img_path = 'data/RESIN/neuron/val_64'
+    # img_path = 'data/RESIN/neuron/val_128'
+    model_name = 'neuron_small_plus'
+    epoch = 530
     ckpt_path = f'out/weights/{model_name}/Epoch_{str(epoch).zfill(4)}.pth'
 
     save_base_path = 'inference/result'
@@ -26,7 +27,7 @@ def main():
 
     device = torch.device('cuda:0')
     ckpt = torch.load(ckpt_path, map_location=device)
-    model = RESIN().to(device)
+    model = RESIN_small_plus().to(device)
     model.eval()
     model.load_state_dict({k.replace('module.',''):v for k,v in ckpt['model'].items()})
 
@@ -37,10 +38,8 @@ def main():
             real_A = normalize(real_A, 'min_max')
             real_A = torch.from_numpy(real_A)[None,None].to(device)
             fake_B = model.G_A(real_A)
-            rec_A = model.G_B(fake_B)
-            fake_B = tensor_to_ndarr(fake_B[0,0])
-            tiff.imwrite(os.path.join(save_path, f'fake_{name}'), fake_B)
-            rec_A = tensor_to_ndarr(rec_A[0,0])
-            tiff.imwrite(os.path.join(save_path, f'rec_{name}'), rec_A)
+            tiff.imwrite(os.path.join(save_path, f'fake_{name}'), tensor_to_ndarr(fake_B[0,0]).astype(np.float16))
+            # rec_A = model.G_B(fake_B)
+            # tiff.imwrite(os.path.join(save_path, f'rec_{name}'), tensor_to_ndarr(rec_A[0,0]).astype(np.float16))
 if __name__ == '__main__':
     main()

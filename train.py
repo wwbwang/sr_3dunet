@@ -132,6 +132,8 @@ def main():
 
     args = parse_args()
     args.port = random.randint(49152,65535)
+
+    print(args)
     
     if args.slurm:
 
@@ -170,7 +172,7 @@ def train(gpu, args):
     init_dist_gpu(gpu, args)
     
     # === DATA === #
-    get_dataset = getattr(__import__("lib.datasets.{}".format(args.dataset), fromlist=["get_dataset"]), "get_dataset")
+    get_dataset = getattr(__import__("lib.dataset.{}".format(args.dataset), fromlist=["get_dataset"]), "get_dataset")
     dataset = get_dataset(args)
 
     sampler = DistributedSampler(dataset, shuffle=args.shuffle, num_replicas = args.world_size, rank = args.rank, seed = 31)
@@ -190,7 +192,7 @@ def train(gpu, args):
     model = nn.parallel.DistributedDataParallel(model, device_ids=[args.gpu])
 
     # === LOSS === #
-    get_loss = getattr(__import__("lib.arch.{}".format(args.loss), fromlist=["get_loss"]), "get_loss")
+    get_loss = getattr(__import__("lib.loss.{}".format(args.loss), fromlist=["get_loss"]), "get_loss")
     loss = get_loss(args, model).cuda(args.gpu)
 
     # === OPTIMIZER === #

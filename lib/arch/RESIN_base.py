@@ -26,10 +26,10 @@ def get_norm_layer(norm_type:str, dim=2):
         raise NotImplementedError('normalization layer [%s] is not found' % norm_type)
     return norm_layer
 
-# === double conv ====
-class DoubleConv(nn.Module):
+# === residual conv ====
+class ResConv(nn.Module):
     def __init__(self, in_channels, out_channels, *, norm_type=None, dim=3):
-        super(DoubleConv, self).__init__()
+        super(ResConv, self).__init__()
 
         if dim == 2:
             Conv = nn.Conv2d
@@ -43,17 +43,26 @@ class DoubleConv(nn.Module):
         use_bias = True if norm_type=='instance' else False
 
         conv_layers = []
-        channels = zip([in_channels, out_channels], [out_channels, out_channels])
-        for in_ch, out_ch in channels:
-            conv_layers.append(Conv(in_ch, out_ch, kernel_size=3, padding=1, bias=use_bias))
-            if norm_type is not None:
-                conv_layers.append(norm_layer(out_channels))
-            conv_layers.append(nn.ReLU(inplace=True))
-        
+        conv_layers.append(Conv(in_channels, out_channels, kernel_size=3, padding=1, bias=use_bias))
+        conv_layers.append(norm_layer(out_channels)) if norm_type else None
+        conv_layers.append(nn.ReLU())
+        conv_layers.append(Conv(out_channels, out_channels, kernel_size=3, padding=1, bias=use_bias))
+        conv_layers.append(norm_layer(out_channels)) if norm_type else None
         self.conv = nn.Sequential(*conv_layers)
 
+        if in_channels != out_channels:
+            self.conv1x1 = Conv(in_channels, out_channels, kernel_size=1, bias=use_bias)
+        else:
+            self.conv1x1 = None
+        self.final_act = nn.ReLU()
+
     def forward(self, x):
+        input = x
         x = self.conv(x)
+        if self.conv1x1:
+            input = self.conv1x1(input)
+        x = x + input
+        x = self.final_act(x)
         return x
 
 # ==========
@@ -116,7 +125,7 @@ class UNetGenerator(nn.Module):
             
         # Encoder
         for feature in features:
-            self.downs.append(DoubleConv(in_channels, feature, norm_type=norm_type, dim=dim))
+            self.downs.append(ResConv(in_channels, feature, norm_type=norm_type, dim=dim))
             in_channels = feature
 
         # Decoder
@@ -125,12 +134,13 @@ class UNetGenerator(nn.Module):
                 nn.Sequential(
                     upsample, 
                     Conv(feature*2, feature, kernel_size=1, stride=1),
-                    nn.ReLU(inplace=True)
+                    nn.ReLU()
                 )
             )
-            self.ups.append(DoubleConv(feature*2, feature, norm_type=norm_type, dim=dim))
+            self.ups.append(ResConv(feature*2, feature, norm_type=norm_type, dim=dim))
 
-            self.final_conv = Conv(features[0], out_channels, kernel_size=3, padding=1)
+
+        self.final_conv = Conv(features[0], out_channels, kernel_size=1)
 
     def forward(self, x):
         input = x
@@ -145,14 +155,11 @@ class UNetGenerator(nn.Module):
         for i in range(0, len(self.ups), 2):
             x = self.ups[i](x)
             skip = skip_connections[i//2+1]
-            if x.shape != skip.shape:
-                x = nn.functional.pad(x, (0, skip.shape[3]-x.shape[3], 0, skip.shape[2]-x.shape[2]))
             x = torch.cat((skip, x), dim=1)
             x = self.ups[i+1](x)
         x = self.final_conv(x)
         x = x + input
         return x
-
 
 
 def define_G(in_channels, out_channels, features, norm_type=None, *, dim=3):
@@ -163,7 +170,7 @@ def define_D(in_channels, features, norm_type=None, *, dim=3):
     net_D = CubeDiscriminator(in_channels, features, norm_type=norm_type, dim=dim)
     return net_D
 
-class RESIN(nn.Module):
+class RESIN_base(nn.Module):
     def __init__(self, in_channels=1, out_channels=1, 
                  features_G=[64,128,256], features_D=[64,128,256], norm_type=None,
                  aniso_dim=-2, iso_dim=-1) -> None:
@@ -181,16 +188,19 @@ class RESIN(nn.Module):
         # Cube Discriminator
         self.D_RecA_1 = define_D(in_channels, features_D, norm_type=norm_type, dim=3)
         self.D_RecA_2 = define_D(in_channels, features_D, norm_type=norm_type, dim=3)
+        self.D_RecA_3 = define_D(in_channels, features_D, norm_type=norm_type, dim=3)
 
     def forward(self, real_A):
         fake_B = self.G_A(real_A)
         rec_A1 = self.G_B(fake_B)
 
         dim0 = self.aniso_dim
-        fake_B_T = self.transpose(fake_B, dim0=dim0)
+        fake_B_T, dim0, dim1 = self.transpose(fake_B, dim0=dim0)
         rec_A2 = self.G_B(fake_B_T)
 
-        return fake_B, rec_A1, fake_B_T, rec_A2
+        rec_A3 = self.G_B(self.transpose(self.G_A(fake_B_T), dim0, dim1)[0])
+
+        return fake_B, rec_A1, fake_B_T, rec_A2, rec_A3
     
     def transpose(self, img:torch.Tensor, dim0=-2, dim1=None):
         if dim1 is None:
@@ -198,10 +208,10 @@ class RESIN(nn.Module):
             dim_list.remove(dim0)
             dim1 = random.choice(dim_list)
         img = img.transpose(dim0, dim1)
-        return img
+        return img, dim1, dim0
 
 def get_model(args):
-    model = RESIN(in_channels=1, out_channels=1, 
+    model = RESIN_base(in_channels=1, out_channels=1, 
                   features_G=args.features_G, features_D=args.features_D, norm_type=args.norm_type,
                   aniso_dim=args.aniso_dim, iso_dim=args.iso_dim)
     return model
@@ -209,9 +219,14 @@ def get_model(args):
 if __name__ == '__main__':
     from torchinfo import summary
     device = torch.device('cuda:0')
-    model = RESIN(1, 1, [64,128,256], [64,128,256], norm_type=None)
-    model.to(device)
     size = 64
     real_A = torch.rand(1,1,size,size,size).to(device)
+
+    model = RESIN_base(1, 1, [64,128,256], [64,128,256], norm_type=None)
+    model.to(device)
     summary(model, (1,1,size,size,size))
-    # fake_B, rec_A1, fake_B_T, rec_A2 = model(real_A)
+    fake_B, rec_A1, fake_B_T, rec_A2 = model(real_A)
+
+    # model = UNetGenerator(norm_type=None)
+    # model.to(device)
+    # summary(model, (1,1,size,size,size))

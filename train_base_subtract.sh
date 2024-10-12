@@ -1,0 +1,12 @@
+python train.py -model neuron_base_subtract \
+                -batch_per_gpu 4 \
+                -epochs 2000 \
+                -save_every 10 \
+                -out out \
+                -cfg config/RESIN_base_subtract.yaml \
+                -slurm \
+                -slurm_ngpus 8 \
+                -slurm_nnodes 1 \
+                -slurm_nodelist c002 \
+                -slurm_partition compute \
+                -reset
