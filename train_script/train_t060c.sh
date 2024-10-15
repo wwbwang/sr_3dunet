@@ -1,12 +1,12 @@
-python train.py -model neuron_base_subtract \
+python train.py -model t060c \
                 -batch_per_gpu 4 \
-                -epochs 2000 \
+                -epochs 4000 \
                 -save_every 10 \
                 -out out \
-                -cfg config/RESIN_base_subtract.yaml \
+                -cfg config/RESIN_t060c.yaml \
                 -slurm \
                 -slurm_ngpus 8 \
                 -slurm_nnodes 1 \
-                -slurm_nodelist c002 \
+                -slurm_nodelist c003 \
                 -slurm_partition compute \
                 -reset

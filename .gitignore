@@ -2,6 +2,7 @@ out/
 
 data/*
 !data/.gitkeep
+!data/script
 
 __pycache__/
 *.pyc

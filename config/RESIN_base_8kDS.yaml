@@ -3,9 +3,9 @@ iso_dim: -1
 aniso_dim: -2
 angel: -45
 
-arch: RESIN_small_lrelu
-optimizer: RESIN_small
-loss: RESIN_small
+arch: RESIN_base_8kDS
+optimizer: RESIN_base
+loss: RESIN_base
 dataset: tif_dataset
 trainer: trainer
 
@@ -17,9 +17,10 @@ features_D: [64,128,256]
 norm_type: null
 
 # data
-data: 'data/RESIN/neuron/64_1k'
+data: 'data/RESIN/neuron/128_8k'
 data_norm_type: 'min_max'
 augment: True
+crop: 64
 
 # loss
 lambda_GAN: 1.

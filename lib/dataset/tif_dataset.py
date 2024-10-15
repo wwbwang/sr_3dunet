@@ -10,7 +10,7 @@ if __name__ == '__main__':
     sys.path.append(os.getcwd())
 
 class tif_dataset(data.Dataset):
-    def __init__(self, data_path, data_norm_type='min_max', augment=True, aniso_dim=-2):
+    def __init__(self, data_path, data_norm_type='min_max', augment=True, aniso_dim=-2, crop_size=None):
         super(tif_dataset, self).__init__()
         img_name_list = os.listdir(data_path)
         self.img_path_list = []
@@ -20,10 +20,13 @@ class tif_dataset(data.Dataset):
         self.augment = augment
         self.aniso_dim = aniso_dim
         self.data_norm_type = data_norm_type
+        self.crop_size = crop_size
 
     def getitem_np(self, index):
         img_path = self.img_path_list[index]
         img = tifffile.imread(img_path).astype(np.float32)
+        if self.crop_size and self.crop_size < img.shape[-1]:
+            img = random_crop(img, patch_size=self.crop_size)
         img = normalize(img, type=self.data_norm_type)
         return img
         
@@ -31,12 +34,24 @@ class tif_dataset(data.Dataset):
         img_np = self.getitem_np(index)
         img_tensor = torch.from_numpy(img_np)
         if self.augment:
-            img_tensor = augment_3d(img_tensor, self.aniso_dim)
+            img_tensor = augment(img_tensor, self.aniso_dim)
         img_tensor = img_tensor[None]
         return img_tensor
     
     def __len__(self):
         return len(self.img_path_list)
+
+def random_crop(img:np.ndarray, patch_size, start_d=None, start_h=None, start_w=None):
+    d, h, w= img.shape[-3:]
+    # randomly choose top and left coordinates
+    if start_d is None:
+        start_d = random.randint(0, d - patch_size)
+    if start_h is None:
+        start_h = random.randint(0, h - patch_size)
+    if start_w is None:
+        start_w = random.randint(0, w - patch_size)
+    img = img[..., start_d:start_d+patch_size, start_h:start_h+patch_size, start_w:start_w+patch_size]
+    return img
 
 def norm_min_max(img:np.ndarray, percentiles=[0,1]):
     flattened_arr = np.sort(img.flatten())
@@ -60,7 +75,7 @@ def normalize(img:np.ndarray, type):
     elif type=='abs':
         return norm_abs(img)
 
-def augment_3d(img:torch.Tensor, dim_keep=-2, flip=True, transpose=True) -> torch.Tensor:
+def augment(img:torch.Tensor, dim_keep=-2, flip=True, transpose=True) -> torch.Tensor:
     dim_alter = [-3,-2,-1]
     dim_alter.remove(dim_keep)
     if flip and random.random() < 0.5:
@@ -73,10 +88,12 @@ def augment_3d(img:torch.Tensor, dim_keep=-2, flip=True, transpose=True) -> torc
     return img
 
 def get_dataset(args):
+    crop_size = args.crop if hasattr(args, 'crop') else None
     train_dataset = tif_dataset(data_path=args.data,
                                 data_norm_type=args.data_norm_type,
                                 augment=args.augment,
-                                aniso_dim=args.aniso_dim)
+                                aniso_dim=args.aniso_dim,
+                                crop_size=crop_size)
     return train_dataset
 
 if __name__ == '__main__':
@@ -84,8 +101,8 @@ if __name__ == '__main__':
     import napari
     from lib.utils.utils import get_slant_mip
 
-    data_path = '/home/ryuuyou/E5/project/data/RESIN_datasets/neuron/fg_blocks'
-    ds = tif_dataset(data_path)
+    data_path = '/home/ryuuyou/E5/project/data/RESIN_datasets/neuron/128_8k'
+    ds = tif_dataset(data_path, crop_size=64)
     print(len(ds))
     cube = ds.__getitem__(np.random.randint(len(ds)))
     mip = get_slant_mip(cube[None], iso_dim=-1)
@@ -95,10 +112,10 @@ if __name__ == '__main__':
     arr_info(cube_np)
     arr_info(mip_np)
 
-    plot_mip(cube_np, figsize=(15,5))
-    plot_some([mip_np])
-    pass
-    # viewer = napari.Viewer(ndisplay=3)
-    # viewer.add_image(cube_np)
-    # viewer.add_image(mip_np)
-    # napari.run()
+    # plot_mip(cube_np, figsize=(15,5))
+    # plot_some([mip_np])
+    # pass
+    viewer = napari.Viewer(ndisplay=3)
+    viewer.add_image(cube_np)
+    viewer.add_image(mip_np)
+    napari.run()

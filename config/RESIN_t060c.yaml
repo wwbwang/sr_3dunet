@@ -3,7 +3,7 @@ iso_dim: -1
 aniso_dim: -2
 angel: -45
 
-arch: RESIN_small_plus
+arch: RESIN_small
 optimizer: RESIN_small
 loss: RESIN_small
 dataset: tif_dataset
@@ -17,7 +17,7 @@ features_D: [64,128,256]
 norm_type: null
 
 # data
-data: 'data/RESIN/neuron/64_1k'
+data: 'data/RESIN/t060c/64'
 data_norm_type: 'min_max'
 augment: True
 

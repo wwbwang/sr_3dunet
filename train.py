@@ -123,13 +123,11 @@ class SLURM_Trainer(object):
         self.args = args
 
     def __call__(self):
-
         init_dist_node(self.args)
         train(None, self.args)
 
 
 def main():
-
     args = parse_args()
     args.port = random.randint(49152,65535)
 
@@ -200,7 +198,7 @@ def train(gpu, args):
     optimizer = get_optimizer(args, model)
 
     # === TRAINING === #
-    Trainer = getattr(__import__("lib.trainers.{}".format(args.trainer), fromlist=["Trainer"]), "Trainer")
+    Trainer = getattr(__import__("lib.trainer.{}".format(args.trainer), fromlist=["Trainer"]), "Trainer")
     Trainer(args, loader, model, loss, optimizer).fit()
 
 
