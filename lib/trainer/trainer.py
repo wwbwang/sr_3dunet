@@ -38,10 +38,9 @@ class Trainer:
         # === TB writers === #
         if self.args.main:	
             self.writer = get_writer(args)
-            self.lr_sched_writer = TBWriter(self.writer, 'scalar', 'Schedules/Learning Rate')			
-            # self.loss_writer = TBWriter(self.writer, 'scalar', 'Loss/total')
+            self.lr_sched_writer = TBWriter(self.writer, 'scalar', 'Schedules/Learning Rate')
 
-            checkdir("{}/weights/{}/".format(args.out, self.args.model), args.reset)
+            checkdir(f"{args.out}/weights/{self.args.model}/", args.reset)
 
 
     def train_one_epoch(self, epoch, lr_schedule):
@@ -172,7 +171,6 @@ class Trainer:
 
 
     def save(self, epoch):
-
         if self.args.fp16:
             state = dict(epoch=epoch+1, 
                             model=self.model.state_dict(), 
@@ -189,4 +187,4 @@ class Trainer:
                             args = self.args
                         )
 
-        torch.save(state, "{}/weights/{}/Epoch_{}.pth".format(self.args.out, self.args.model, str(epoch+1).zfill(4) ))
+        torch.save(state, f"{self.args.out}/weights/{self.args.model}/Epoch_{str(epoch+1).zfill(4)}.pth")

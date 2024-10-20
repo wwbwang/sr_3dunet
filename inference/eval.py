@@ -11,7 +11,7 @@ from ryu_pytools import tensor_to_ndarr, check_dir
 
 if __name__ == '__main__':
     sys.path.append(os.getcwd())
-from lib.dataset.tif_dataset import normalize
+from lib.dataset.tif_dataset import norm_min_max, norm_fn
 
 import ruamel.yaml as yaml
 
@@ -31,12 +31,14 @@ def handle_big_tif(model, img, args, device):
     patches, indices = emp.extract_patches(img, patchsize=crop_size, overlap=overlap, stride=None, vox=True)
     patches_res = []
     for real_A in patches:
-        real_A = normalize(real_A, args.data_norm_type)
+        real_A, min_value, max_value = norm_min_max(real_A, return_info=True)
         real_A = torch.from_numpy(real_A)[None,None].to(device)
         fake_B = model.G_A(real_A)
+        fake_B = torch.clip(fake_B, 0, 1)
+        fake_B = fake_B*(max_value-min_value) + min_value
         patches_res.append(tensor_to_ndarr(fake_B[0,0]))
     res = emp.merge_patches(patches_res, indices, mode='avg')
-    return res.astype(np.float16)
+    return res.astype(np.uint16)
 
 def main():
     parser = argparse.ArgumentParser(description='eval args')
@@ -75,9 +77,9 @@ def main():
                 fake_B = handle_big_tif(model, real_A, args, device)
                 tiff.imwrite(os.path.join(save_path, f'fake_{name}'), fake_B)
             else:
-                real_A = normalize(real_A, args.data_norm_type)
+                real_A = norm_fn(args.data_norm_type)(real_A)
                 real_A = torch.from_numpy(real_A)[None,None].to(device)
-                fake_B = model.G_A(real_A)
+                fake_B = model.G_A(real_A) 
                 tiff.imwrite(os.path.join(save_path, f'fake_{name}'), tensor_to_ndarr(fake_B[0,0]).astype(np.float16))
 
 if __name__ == '__main__':

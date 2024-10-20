@@ -4,30 +4,33 @@ import random
 import torch
 from torch.utils import data
 import tifffile
+from typing import Union
 
 if __name__ == '__main__':
     import sys
     sys.path.append(os.getcwd())
 
 class tif_dataset(data.Dataset):
-    def __init__(self, data_path, data_norm_type='min_max', augment=True, aniso_dim=-2, crop_size=None):
+    def __init__(self, data_path, data_norm_type='min_max', augment=True, aniso_dim=-2, load_size=None, full_mip=False):
         super(tif_dataset, self).__init__()
         img_name_list = os.listdir(data_path)
         self.img_path_list = []
         for img_name in img_name_list:
             self.img_path_list.append(os.path.join(data_path, img_name))
         
+        self.data_norm_type = data_norm_type
         self.augment = augment
         self.aniso_dim = aniso_dim
-        self.data_norm_type = data_norm_type
-        self.crop_size = crop_size
+        self.load_size = load_size
+        self.full_mip = full_mip
 
     def getitem_np(self, index):
         img_path = self.img_path_list[index]
         img = tifffile.imread(img_path).astype(np.float32)
-        if self.crop_size and self.crop_size < img.shape[-1]:
-            img = random_crop(img, patch_size=self.crop_size)
-        img = normalize(img, type=self.data_norm_type)
+        if self.load_size and self.load_size < img.shape[-1]:
+            img = random_crop(img, patch_size=self.load_size)
+        if not self.full_mip:
+            img = norm_fn(self.data_norm_type)(img)
         return img
         
     def __getitem__(self, index):
@@ -53,27 +56,39 @@ def random_crop(img:np.ndarray, patch_size, start_d=None, start_h=None, start_w=
     img = img[..., start_d:start_d+patch_size, start_h:start_h+patch_size, start_w:start_w+patch_size]
     return img
 
-def norm_min_max(img:np.ndarray, percentiles=[0,1]):
-    flattened_arr = np.sort(img.flatten())
-    clip_low = int(percentiles[0] * len(flattened_arr))
-    clip_high = int(percentiles[1] * len(flattened_arr))
-    clipped_arr = np.clip(img, flattened_arr[clip_low], flattened_arr[clip_high-1])
+# def norm_min_max(img:np.ndarray, percentiles=[0,1], return_info=False):
+#     flattened_arr = np.sort(img.flatten())
+#     clip_low = int(percentiles[0] * len(flattened_arr))
+#     clip_high = int(percentiles[1] * len(flattened_arr))
+#     clipped_arr = np.clip(img, flattened_arr[clip_low], flattened_arr[clip_high-1])
 
-    min_value = np.min(clipped_arr)
-    max_value = np.max(clipped_arr) 
-    img = (clipped_arr-min_value)/(max_value-min_value)
+#     min_value = np.min(clipped_arr)
+#     max_value = np.max(clipped_arr) 
+#     img = (clipped_arr-min_value)/(max_value-min_value)
+#     if return_info:
+#         return img, min_value, max_value
+#     return img
+
+def norm_min_max(img:Union[np.ndarray,torch.Tensor], min_value=None, max_value=None, return_info=False):
+    if not min_value:
+        min_value = img.min()
+    if not max_value:
+        max_value = img.max()
+    img = (img - min_value) / (max_value - min_value)
+    if return_info:
+        return img, min_value, max_value
     return img
 
-def norm_abs(img:np.ndarray, abs_value=65535):
+def norm_abs(img:Union[np.ndarray,torch.Tensor], abs_value=65535):
     assert abs_value >= 0, 'invalid abs_value'
     img = img/abs_value
     return img
 
-def normalize(img:np.ndarray, type):
+def norm_fn(type):
     if type=='min_max':
-        return norm_min_max(img)
+        return norm_min_max
     elif type=='abs':
-        return norm_abs(img)
+        return norm_abs
 
 def augment(img:torch.Tensor, dim_keep=-2, flip=True, transpose=True) -> torch.Tensor:
     dim_alter = [-3,-2,-1]
@@ -88,12 +103,11 @@ def augment(img:torch.Tensor, dim_keep=-2, flip=True, transpose=True) -> torch.T
     return img
 
 def get_dataset(args):
-    crop_size = args.crop if hasattr(args, 'crop') else None
+    load_size = args.load_size if hasattr(args, 'load_size') else None
     train_dataset = tif_dataset(data_path=args.data,
-                                data_norm_type=args.data_norm_type,
                                 augment=args.augment,
                                 aniso_dim=args.aniso_dim,
-                                crop_size=crop_size)
+                                load_size=load_size)
     return train_dataset
 
 if __name__ == '__main__':
@@ -102,7 +116,7 @@ if __name__ == '__main__':
     from lib.utils.utils import get_slant_mip
 
     data_path = '/home/ryuuyou/E5/project/data/RESIN_datasets/neuron/128_8k'
-    ds = tif_dataset(data_path, crop_size=64)
+    ds = tif_dataset(data_path, load_size=64)
     print(len(ds))
     cube = ds.__getitem__(np.random.randint(len(ds)))
     mip = get_slant_mip(cube[None], iso_dim=-1)

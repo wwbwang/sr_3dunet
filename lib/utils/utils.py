@@ -1,6 +1,7 @@
 import torch
 import math
 import random
+import numpy as np
 
 def affine_sample(img:torch.Tensor, angel=-45):
     b,c,d,h,w = img.shape
@@ -25,3 +26,20 @@ def get_slant_mip(img:torch.Tensor, angel=-45, iso_dim=-1, augment=True):
     if augment and random.random() < 0.5:
         mip = mip.transpose(-1,-2)
     return mip
+
+def center_crop(img:torch.Tensor, crop_size=64, *, dim=3):
+    assert crop_size%2==0, 'invalid crop size'
+    c = np.asarray(img.shape[-dim:])//2
+    r = np.asarray([crop_size//2]*dim)
+    if dim == 3:
+        ds,hs,ws = c-r
+        de,he,we = c+r
+        img_crop = img[..., ds:de, hs:he, ws:we]
+    elif dim == 2:
+        hs,ws = c-r
+        he,we = c+r
+        img_crop = img[..., hs:he, ws:we]
+    return img_crop
+
+
+

@@ -6,6 +6,7 @@ if __name__ == '__main__':
     import sys, os
     sys.path.append(os.getcwd())
 
+from lib.arch.RESIN_tiny import RESIN_tiny
 from lib.arch.RESIN_small import RESIN_small
 from lib.arch.RESIN_base import RESIN_base
 
@@ -23,6 +24,14 @@ class Adagrad_Opt(Opt.Adagrad):
     def __init__(self, model:torch.nn.Module, args):
         lr_start = args.lr_start
         super(Adagrad_Opt, self).__init__(model.parameters(), lr=lr_start)
+
+class RESIN_tiny_Optim():
+    def __init__(self, model:RESIN_tiny, args) -> None:
+        lr_G = args.lr_G
+        lr_D = args.lr_D
+        self.optimG = Opt.Adam(itertools.chain(model.G_A.parameters(), model.G_B.parameters()), lr=lr_G)
+        self.optimD = Opt.Adam(itertools.chain(model.D_MIP.parameters(), 
+                                               model.D_RecA.parameters()), lr=lr_D)
 
 class RESIN_small_Optim():
     def __init__(self, model:RESIN_small, args) -> None:
@@ -52,6 +61,7 @@ def get_optimizer(args, model):
         'adam': Adam_Opt,
         'sgd': SGD_Opt,
         'adagrad': Adagrad_Opt,
+        'RESIN_tiny': RESIN_tiny_Optim,
         'RESIN_small': RESIN_small_Optim,
         'RESIN_base': RESIN_base_Optim
     }

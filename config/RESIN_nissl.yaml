@@ -17,7 +17,7 @@ features_D: [64,128,256]
 norm_type: null
 
 # data
-data: 'data/RESIN/t060c/128'
+data: 'data/RESIN/nissl/128'
 data_norm_type: 'min_max'
 augment: True
 full_mip: True

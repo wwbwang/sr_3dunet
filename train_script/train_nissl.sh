@@ -1,12 +1,12 @@
-python train.py -model t060c \
+python train.py -model nissl \
                 -batch_per_gpu 4 \
-                -epochs 2000 \
+                -epochs 1000 \
                 -save_every 10 \
                 -out out \
-                -cfg config/RESIN_t060c.yaml \
+                -cfg config/RESIN_nissl.yaml \
                 -slurm \
                 -slurm_ngpus 8 \
                 -slurm_nnodes 1 \
-                -slurm_nodelist c003 \
+                -slurm_nodelist c002 \
                 -slurm_partition compute \
                 -reset
