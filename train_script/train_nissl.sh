@@ -1,4 +1,4 @@
-python train.py -model nissl \
+python train.py -model nissl_fullDS \
                 -batch_per_gpu 4 \
                 -epochs 1000 \
                 -save_every 10 \
