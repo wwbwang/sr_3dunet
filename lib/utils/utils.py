@@ -2,6 +2,7 @@ import torch
 import math
 import random
 import numpy as np
+import os
 
 def affine_sample(img:torch.Tensor, angel=-45):
     b,c,d,h,w = img.shape
@@ -41,5 +42,15 @@ def center_crop(img:torch.Tensor, crop_size=64, *, dim=3):
         img_crop = img[..., hs:he, ws:we]
     return img_crop
 
-
-
+def check_dir(path, *, mode:str='r'):
+    if os.path.exists(path):
+            print(f'the directory already exists: ["{path}"]')
+    else:
+        if mode == 'r':
+            os.makedirs(path)
+            print(f'the directory has been created: ["{path}"]')
+        elif mode == 'a':
+            os.mkdir(path)
+            print(f'the directory has been created: ["{path}"]')
+        else:
+            print(f'the directory doesn\'t exist: ["{path}"]')

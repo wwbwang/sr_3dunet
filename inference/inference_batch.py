@@ -55,7 +55,7 @@ def handle_bigTif(model, img, args, device):
                 piece_in, min_value, max_value = norm_min_max(piece_in, return_info=True)
                 piece_in = torch.from_numpy(piece_in)[None,None].to(device)
 
-                piece_out = model.G_A(piece_in)
+                piece_out = model(piece_in)
                 piece_out = torch.clip(piece_out, 0, 1)
                 piece_out = piece_out[0,0].cpu().numpy()
                 # postprocess
@@ -73,40 +73,40 @@ def handle_bigTif(model, img, args, device):
 def main():
     parser = argparse.ArgumentParser(description='eval args')
     parser.add_argument('-cfg', type=str)
-    parser.add_argument('-weight', type=str)
-    parser.add_argument('-epoch', type=int)
-    parser.add_argument('-img_path', type=str)
-    parser.add_argument('-save_base_path', type=str, default='inference/result')
-    parser.add_argument('-big_tif', action='store_true')
+    parser.add_argument('-ckpt_path', type=str)
+    parser.add_argument('-img_dir', type=str)
+    parser.add_argument('-save_dir', type=str, default='inference/result')
     parser.add_argument('-piece_size', type=int, default=64)
     parser.add_argument('-overlap', type=int, default=16)
 
     args = parser.parse_args()
     args = read_cfg(args)
 
-    weight = args.weight
-    epoch = args.epoch
-    ckpt_path = f'out/weights/{weight}/Epoch_{str(epoch).zfill(4)}.pth'
+    ckpt_path = args.ckpt_path
     device = torch.device('cuda:0')
     ckpt = torch.load(ckpt_path, map_location=device)
+
     get_model = getattr(__import__("lib.arch.{}".format(args.arch), fromlist=["get_model"]), "get_model")
     model = get_model(args).to(device)
+    if 'model' in ckpt.keys():
+        model.load_state_dict({k.replace('module.',''):v for k,v in ckpt['model'].items()})
+    else:
+        model = model.G_A
+        model.load_state_dict(ckpt)
     model.eval()
-    model.load_state_dict({k.replace('module.',''):v for k,v in ckpt['model'].items()})
 
-    img_path = args.img_path
-    save_base_path = args.save_base_path
-    save_path = os.path.join(save_base_path, f'{weight}_{str(epoch).zfill(4)}')
-    check_dir(save_path)
+    img_dir = args.img_dir
+    save_dir = args.save_dir
+    check_dir(save_dir)
 
     with torch.no_grad():
-        img_name_list = os.listdir(img_path)
+        img_name_list = os.listdir(img_dir)
         for name in tqdm(img_name_list):
-            real_A = tiff.imread(os.path.join(img_path, name)).astype(np.float32)
-            if args.big_tif and real_A.shape[-1]>64:
+            real_A = tiff.imread(os.path.join(img_dir, name)).astype(np.float32)
+            if real_A.shape[-1]>64:
                 fake_B = handle_bigTif(model, real_A, args, device)
                 fake_B = fake_B.astype(np.uint16)
-                tiff.imwrite(os.path.join(save_path, f'fake_{name}'), fake_B)
+                tiff.imwrite(os.path.join(save_dir, f'fake_{name}'), fake_B)
             else:
                 real_A, min_value, max_value = norm_min_max(real_A, return_info=True)
                 real_A = torch.from_numpy(real_A)[None,None].to(device)
@@ -115,7 +115,7 @@ def main():
                 fake_B = fake_B[0,0].cpu().numpy()
                 fake_B = fake_B*(max_value-min_value) + min_value
                 fake_B = fake_B.astype(np.uint16)
-                tiff.imwrite(os.path.join(save_path, f'fake_{name}'), fake_B)
+                tiff.imwrite(os.path.join(save_dir, f'fake_{name}'), fake_B)
 
 if __name__ == '__main__':
     main()
