@@ -3,9 +3,9 @@ iso_dim: -1
 aniso_dim: -2
 angel: -45
 
-arch: RESIN_small
-optimizer: RESIN_small
-loss: RESIN_small
+arch: RESIN_tiny_weakD
+optimizer: RESIN_tiny
+loss: RESIN_tiny
 dataset: tif_dataset
 trainer: trainer
 
@@ -17,10 +17,13 @@ features_D: [64,128,256]
 norm_type: null
 
 # data
-data: 'data/RESIN/neuron/128_8k'
+# data: 'data/RESIN/nissl/128'
+data: '/home/wangwb/data/RESIN_datasets/NISSL/Train_datasets'
 data_norm_type: 'min_max'
 augment: True
-crop: 64
+full_mip: True
+load_size: 96
+feed_size: 64
 
 # loss
 lambda_GAN: 1.

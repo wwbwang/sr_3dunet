@@ -77,9 +77,9 @@ class RESIN_Loss(nn.Module):
         self.aniso_mip, self.halfIso_mip1, self.halfIso_mip2 = self.get_mip(self.fake_B, self.aniso_dim)
         b = self.aniso_mip.shape[0]
         self.nrow = math.ceil(b/math.floor(math.sqrt(b)))
-        self.mip_logger['aniso_mip'] = torchvision.utils.make_grid(self.aniso_mip, nrow=self.nrow)
-        self.mip_logger['halfIso_mip1'] = torchvision.utils.make_grid(self.halfIso_mip1, nrow=self.nrow)
-        self.mip_logger['halfIso_mip2'] = torchvision.utils.make_grid(self.halfIso_mip2, nrow=self.nrow)
+        self.mip_logger['aniso_mip'] = torchvision.utils.make_grid(self.aniso_mip, nrow=self.nrow, normalize=True, scale_each=True)
+        self.mip_logger['halfIso_mip1'] = torchvision.utils.make_grid(self.halfIso_mip1, nrow=self.nrow, normalize=True, scale_each=True)
+        self.mip_logger['halfIso_mip2'] = torchvision.utils.make_grid(self.halfIso_mip2, nrow=self.nrow, normalize=True, scale_each=True)
 
         # === G forward ===
         if (it+1)%self.G_train_it == 0:
@@ -142,7 +142,7 @@ class RESIN_Loss(nn.Module):
     def cal_loss_D(self):
         # real MIP
         ref_iso_mip = get_slant_mip(self.real_A, angel=self.angel, iso_dim=self.iso_dim)
-        self.mip_logger['ref_iso_mip'] = torchvision.utils.make_grid(ref_iso_mip, nrow=self.nrow)
+        self.mip_logger['ref_iso_mip'] = torchvision.utils.make_grid(ref_iso_mip, nrow=self.nrow, normalize=True, scale_each=True)
 
         loss_real_pred_by_D_aniso = self.cal_GAN_loss(self.model.D_AnisoMIP, ref_iso_mip, True, is_disc=True)
         loss_real_pred_by_D_iso1 = self.cal_GAN_loss(self.model.D_IsoMIP_1, ref_iso_mip, True, is_disc=True)

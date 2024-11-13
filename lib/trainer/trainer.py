@@ -24,7 +24,6 @@ import pprint
 import sys
 
 class Trainer:
-
     def __init__(self, args, loader, model, loss, optimizer):
         pprint.pprint(vars(args))
 
@@ -106,7 +105,6 @@ class Trainer:
                 # loss logger
                 for key in loss_logger.keys():
                     self.writer.add_scalar(key, metric_logger.meters[key].value, it)
-                self.writer.add_scalar(key, metric_logger.meters[key].value, it)
 
                 # mip logger
                 if it % 200 == 0:

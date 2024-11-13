@@ -6,6 +6,7 @@ import functools
 if __name__ == '__main__':
     import os, sys
     sys.path.append(os.getcwd())
+
 from lib.utils.utils import get_slant_mip, center_crop
 from lib.dataset.tif_dataset import norm_fn
 
@@ -166,6 +167,33 @@ class UNetGenerator(nn.Module):
         x = x + input
         return x
 
+class ConvGenerator(nn.Module):
+    def __init__(self, in_channels=1, out_channels=1, features=[32, 32, 32], *, dim=3):
+        super(ConvGenerator, self).__init__()
+
+        if dim == 2:
+            Conv = nn.Conv2d
+        elif dim == 3:
+            Conv = nn.Conv3d
+        else:
+            raise Exception('Invalid dim.')
+            
+        # Encoder
+        in_ch = in_channels
+        convs = []
+        for feature in features:
+            convs.append(Conv(in_ch, feature, kernel_size=3, padding=1))
+            convs.append(nn.ReLU())
+            in_ch = feature
+        self.convs = nn.Sequential(*convs)
+        self.final_conv = Conv(features[0], out_channels, kernel_size=1)
+
+    def forward(self, x):
+        input = x
+        x = self.convs(x)
+        x = self.final_conv(x)
+        x = x + input
+        return x
 
 def define_G(in_channels, out_channels, features, norm_type=None, *, dim=3):
     net_G = UNetGenerator(in_channels, out_channels, features, norm_type=norm_type, dim=dim)
@@ -187,22 +215,12 @@ class RESIN_tiny(nn.Module):
         self.args = args
 
         # Generator
-        self.G_A = define_G(in_channels, out_channels, features_G, norm_type=norm_type, dim=3)
-        self.G_B = define_G(in_channels, out_channels, features_G, norm_type=norm_type, dim=3)
+        self.G_A = UNetGenerator(in_channels, out_channels, features_G, norm_type=norm_type, dim=3)
+        self.G_B = ConvGenerator(in_channels, out_channels, [32,32,32], dim=3)
         # MIP Discriminator
         self.D_MIP = define_D(in_channels, features_D, norm_type=norm_type, dim=2)
         # Cube Discriminator
         self.D_RecA = define_D(in_channels, features_D, norm_type=norm_type, dim=3)
-
-        self.init_weight()
-
-    def init_weight(self):
-        type_tuple = (nn.Conv2d, nn.Conv3d)
-        for module in self.modules():
-            if isinstance(module, type_tuple):
-                nn.init.kaiming_normal_(module.weight)
-                if module.bias is not None:
-                    nn.init.zeros_(module.bias)
 
     def forward(self, real_A):
         if self.full_mip:

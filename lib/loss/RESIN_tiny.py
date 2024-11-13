@@ -85,10 +85,10 @@ class RESIN_Loss(nn.Module):
         # mip logger
         b = self.aniso_mip.shape[0]
         self.nrow = math.ceil(b/math.floor(math.sqrt(b)))
-        self.mip_logger['aniso_mip'] = torchvision.utils.make_grid(self.aniso_mip, nrow=self.nrow)
-        self.mip_logger['halfIso_mip1'] = torchvision.utils.make_grid(self.halfIso_mip1, nrow=self.nrow)
-        self.mip_logger['halfIso_mip2'] = torchvision.utils.make_grid(self.halfIso_mip2, nrow=self.nrow)
-        self.mip_logger['ref_iso_mip'] = torchvision.utils.make_grid(self.ref_iso_mip, nrow=self.nrow)
+        self.mip_logger['aniso_mip'] = torchvision.utils.make_grid(self.aniso_mip, nrow=self.nrow, normalize=True, scale_each=True)
+        self.mip_logger['halfIso_mip1'] = torchvision.utils.make_grid(self.halfIso_mip1, nrow=self.nrow, normalize=True, scale_each=True)
+        self.mip_logger['halfIso_mip2'] = torchvision.utils.make_grid(self.halfIso_mip2, nrow=self.nrow, normalize=True, scale_each=True)
+        self.mip_logger['ref_iso_mip'] = torchvision.utils.make_grid(self.ref_iso_mip, nrow=self.nrow, normalize=True, scale_each=True)
 
         # === G forward ===
         if (it+1)%self.G_train_it == 0:
