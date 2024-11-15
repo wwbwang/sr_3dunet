@@ -127,14 +127,14 @@ class Trainer:
 
         # === Schedules === #
         lr_G_schedule = cosine_scheduler(
-                        base_value = self.args.lr_G * (self.args.batch_per_gpu * self.args.world_size) / 256.,
+                        base_value = self.args.lr_G,
                         final_value = self.args.lr_end,
                         epochs = self.args.epochs,
                         niter_per_ep = len(self.train_gen),
                         warmup_epochs= self.args.lr_warmup,
         )
         lr_D_schedule = cosine_scheduler(
-                        base_value = self.args.lr_D * (self.args.batch_per_gpu * self.args.world_size) / 256.,
+                        base_value = self.args.lr_D,
                         final_value = self.args.lr_end,
                         epochs = self.args.epochs,
                         niter_per_ep = len(self.train_gen),

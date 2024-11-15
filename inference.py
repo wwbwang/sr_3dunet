@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 import tifffile as tiff
+import h5py
 from tqdm import tqdm
 import argparse
 from ruamel.yaml import YAML
@@ -35,12 +36,8 @@ def list_tif_file(dir):
 def tensor2ndarr(x:torch.Tensor):
     return x.detach().cpu().numpy()
 
-def process_Tif(model, img, args, device, *, n_idx=0, file_name='IMAGE'):
-    overlap = args.overlap
-    piece_size = args.piece_size
-    D, H, W = img.shape
-    img_out = np.zeros_like(img)
-    
+def get_ROI(shape, piece_size, overlap):
+    D, H, W = shape
     def cal_index(idx, BORDER):
         if idx + piece_size >= BORDER:
             start = BORDER - piece_size
@@ -65,10 +62,29 @@ def process_Tif(model, img, args, device, *, n_idx=0, file_name='IMAGE'):
                 if w_e==W: break
             if h_e==H: break
         if d_e==D: break
-    
+
+    return ROI
+
+def process_oneImage(model:torch.nn.Module, directory:str, file_name:str, save_path:str, device:torch.device, args:argparse.Namespace, *, n_idx:int=0):
+    overlap = args.overlap
+    piece_size = args.piece_size
+
+    # load data
+    if file_name.endswith(('tif', '.tiff')):
+        real_A = tiff.imread(os.path.join(directory, file_name)).astype(np.float32)
+        fake_B = np.zeros_like(real_A)
+    elif file_name.endswith('ims'):
+        dataset_key = 'DataSet/ResolutionLevel 0/TimePoint 0/Channel 0/Data'
+        SRC_IMS = h5py.File(os.path.join(directory, file_name), 'r')
+        real_A = SRC_IMS[dataset_key]
+        DST_IMS = h5py.File(os.path.join(save_path, f'SR_{file_name}'), 'w')
+        fake_B = DST_IMS.create_dataset(dataset_key, shape=real_A.shape, chunks=real_A.chunks, dtype=real_A.dtype)
+
+    # process data
+    ROI = get_ROI(shape=real_A.shape, piece_size=overlap, overlap=piece_size)
     for roi in tqdm(ROI, desc=f'[{n_idx:>2}] {file_name:<10}'):
         [d_s,d_e,d_cL,d_cR], [h_s,h_e,h_cL,h_cR], [w_s,w_e,w_cL,w_cR] = roi
-        piece_in = img[d_s:d_e, h_s:h_e, w_s:w_e]
+        piece_in = real_A[d_s:d_e, h_s:h_e, w_s:w_e]
         # preprocess
         piece_in, min_value, max_value = norm_min_max(piece_in, return_info=True)
         piece_in = torch.from_numpy(piece_in)[None,None].to(device)
@@ -80,17 +96,15 @@ def process_Tif(model, img, args, device, *, n_idx=0, file_name='IMAGE'):
         piece_out = piece_out*(max_value-min_value) + min_value
 
         piece_out = piece_out[d_cL:piece_size-d_cR, h_cL:piece_size-h_cR, w_cL:piece_size-w_cR]                
-        img_out[d_s+d_cL:d_e-d_cR, h_s+h_cL:h_e-h_cR, w_s+w_cL:w_e-w_cR] = piece_out
-    return img_out
-
-def process_oneImage(model, directory, file_name, save_path, device, args, *, n_idx=0):
-    real_A = tiff.imread(os.path.join(directory, file_name)).astype(np.float32)
-    fake_B = process_Tif(model, real_A, args, device, n_idx=n_idx, file_name=file_name)
+        fake_B[d_s+d_cL:d_e-d_cR, h_s+h_cL:h_e-h_cR, w_s+w_cL:w_e-w_cR] = piece_out
     
-    tiff.imwrite(os.path.join(save_path, f'SR_{file_name}'), fake_B.astype(np.uint16))
-    if args.debug:
-        residual = real_A - fake_B
-        tiff.imwrite(os.path.join(save_path, f'Residual_{file_name}'), residual.astype(np.float16))
+    if file_name.endswith(('tif', '.tiff')):
+        tiff.imwrite(os.path.join(save_path, f'SR_{file_name}'), fake_B.astype(np.uint16),
+                     compression='zlib', compressionargs={'level': 8})
+        if args.debug:
+            residual = real_A - fake_B
+            tiff.imwrite(os.path.join(save_path, f'Residual_{file_name}'), residual.astype(np.float16),
+                         compression='zlib', compressionargs={'level': 8})
 
 def main(simulated_args=None):
     start_time = time.time()

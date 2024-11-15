@@ -25,7 +25,7 @@ def main():
     parser.add_argument('-fg_judge', action='store_true')
     parser.add_argument('-center_crop', type=float, default=None)
     parser.add_argument('-patch_size', type=int, default=128)
-    parser.add_argument('-overlap', type=float, default=0.25)
+    parser.add_argument('-overlap', type=int, default=32)
     args = parser.parse_args()
     print(args)
 
@@ -52,14 +52,14 @@ def main():
     print(f'IMAGE:  shape:{IMAGE.shape}; dtype:{IMAGE.dtype}')
 
     emp = EMPatches()
-    patches, indices = emp.extract_patches(IMAGE, patchsize=args.patch_size, overlap=args.overlap, stride=None, vox=True)
+    patches, indices = emp.extract_patches(IMAGE, patchsize=args.patch_size, overlap=args.overlap/args.patch_size, stride=None, vox=True)
     print('=== patching applied ===')
     print(f'patches num: {len(patches)}')
     count = 0
     for i, img in tqdm(enumerate(patches)):
         if args.fg_judge and not img_valid(img):
             continue
-        tiff.imwrite(os.path.join(output_dir, f'{str(i+1).zfill(4)}.tif'), img)
+        tiff.imwrite(os.path.join(output_dir, f'{str(count+1).zfill(4)}.tif'), img)
         count += 1
     print(f'valid num: {count}')
     print('=== saved ===')
